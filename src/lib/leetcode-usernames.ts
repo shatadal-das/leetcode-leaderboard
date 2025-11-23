@@ -16,7 +16,6 @@ export const leetCodeUsernames: { name: string; username: string }[] = [
   { name: "Apoorv Trivedi", username: "Apoorv_Trivedi" },
   { name: "Manish Kumar", username: "Manish_Kumar_150" },
   { name: "Kartik Gupta", username: "Kartik__gupta__" },
-  { name: "Sumit Sahai", username: "yeahitsdevil" },
   { name: "Likhit Rajendra Meshram", username: "Yytgq17NLy" },
   { name: "Prabhakar Kant Kuldeep", username: "Prabhakarkant" },
   { name: "Altaf Raja", username: "eisen_bear" },
