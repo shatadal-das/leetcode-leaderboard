@@ -41,7 +41,6 @@ export const columns: ColumnDef<User>[] = [
     accessorKey: "rank",
     header: "Rank",
     size: 10,
-    // Cell rendering is handled in LeaderboardRow now for custom styling
     cell: ({ row }) => <span>#{row.getValue("rank")}</span>,
   },
   {

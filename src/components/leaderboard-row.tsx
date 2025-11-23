@@ -2,6 +2,7 @@ import { flexRender, Row } from "@tanstack/react-table";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { User } from "./leaderboard";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 type Props = {
   row: Row<User>;
@@ -36,13 +37,23 @@ const LeaderboardRow = ({ row }: Props) => {
     >
       {row.getVisibleCells().map((cell) => {
         const isRankCell = cell.column.id === "rank";
-
+        const isUserName = cell.column.id === "username";
         return (
           <TableCell
             key={cell.id}
             className={cn("px-6 py-4", isRankCell ? rankCellClassName : "")}
           >
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            {isUserName ? (
+              <Link
+                href={`https://leetcode.com/u/${row.original.id}`}
+                className="font-medium hover:underline underline-offset-4 decoration-primary"
+                target="_blank"
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </Link>
+            ) : (
+              flexRender(cell.column.columnDef.cell, cell.getContext())
+            )}
           </TableCell>
         );
       })}
