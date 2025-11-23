@@ -32,4 +32,5 @@ export const leetCodeUsernames: { name: string; username: string }[] = [
   { name: "Vishali", username: "Vishali_Banga" },
   { name: "Bhavishya Sisodiya", username: "Bhavishya_12" },
   { name: "Shivam Singh", username: "ShivamSingh_126" },
+  { name: "Robin Poonia", username: "robin_poonia" },
 ];
