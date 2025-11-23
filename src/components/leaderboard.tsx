@@ -26,6 +26,8 @@ import {
 import { useEffect, useState } from "react";
 import LeaderboardRow from "./leaderboard-row";
 import { leetCodeUsernames } from "@/lib/leetcode-usernames";
+// Import the Server Action we created
+import { getLeaderboardData } from "@/app/actions/get-leaderboard-data";
 
 export type User = {
   id: string;
@@ -57,7 +59,8 @@ export const columns: ColumnDef<User>[] = [
     header: ({ column }) => (
       <Button
         variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        // CHANGE: Logic updated to sort Descending first
+        onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
         className="-ml-4 hover:bg-muted"
       >
         Contest Rating
@@ -66,14 +69,14 @@ export const columns: ColumnDef<User>[] = [
     ),
     cell: ({ row }) => <div>{row.getValue("rating")}</div>,
   },
-  // MOVED UP: Total Contests is now before Total Solved
   {
     accessorKey: "contests",
     size: 20,
     header: ({ column }) => (
       <Button
         variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        // CHANGE: Logic updated to sort Descending first
+        onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
         className="-ml-4 hover:bg-muted"
       >
         Total Contests
@@ -88,7 +91,8 @@ export const columns: ColumnDef<User>[] = [
     header: ({ column }) => (
       <Button
         variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        // CHANGE: Logic updated to sort Descending first
+        onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
         className="-ml-4 hover:bg-muted"
       >
         Total Solved
@@ -108,40 +112,12 @@ function Leaderboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const promises = leetCodeUsernames.map(async (user) => {
-          try {
-            const [contestResponse, solvedResponse] = await Promise.all([
-              fetch(
-                `https://alfa-leetcode-api.onrender.com/${user.username}/contest`
-              ),
-              fetch(
-                `https://alfa-leetcode-api.onrender.com/${user.username}/solved`
-              ),
-            ]);
+        setLoading(true);
 
-            const contestResult = await contestResponse.json();
-            const solvedResult = await solvedResponse.json();
+        // Call the Server Action
+        const results = await getLeaderboardData(leetCodeUsernames);
 
-            return {
-              id: user.username,
-              username: user.name,
-              rating: Math.round(contestResult.contestRating || 0),
-              solved: solvedResult.solvedProblem || 0,
-              contests: contestResult.contestAttend || 0,
-            };
-          } catch (error) {
-            return {
-              id: user.username,
-              username: user.name,
-              rating: 0,
-              solved: 0,
-              contests: 0,
-            };
-          }
-        });
-
-        const results = await Promise.all(promises);
-
+        // Sort and Rank on the client side
         const sortedResults = results.sort((a, b) => b.rating - a.rating);
 
         const rankedUsers: User[] = sortedResults.map((user, index) => ({
@@ -228,7 +204,7 @@ function Leaderboard() {
                 >
                   <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <p>Fetching data...</p>
+                    <p>Fetching contest data...</p>
                   </div>
                 </TableCell>
               </TableRow>
