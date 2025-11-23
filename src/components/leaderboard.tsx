@@ -27,12 +27,12 @@ import { useEffect, useState } from "react";
 import LeaderboardRow from "./leaderboard-row";
 import { leetCodeUsernames } from "@/lib/leetcode-usernames";
 
-
 export type User = {
   id: string;
   rank: number;
   username: string;
   rating: number;
+  solved: number;
   contests: number;
 };
 
@@ -53,7 +53,7 @@ export const columns: ColumnDef<User>[] = [
   },
   {
     accessorKey: "rating",
-    size: 30,
+    size: 20,
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -66,6 +66,7 @@ export const columns: ColumnDef<User>[] = [
     ),
     cell: ({ row }) => <div>{row.getValue("rating")}</div>,
   },
+  // MOVED UP: Total Contests is now before Total Solved
   {
     accessorKey: "contests",
     size: 20,
@@ -81,6 +82,21 @@ export const columns: ColumnDef<User>[] = [
     ),
     cell: ({ row }) => <div>{row.getValue("contests")}</div>,
   },
+  {
+    accessorKey: "solved",
+    size: 20,
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="-ml-4 hover:bg-muted"
+      >
+        Total Solved
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => <div>{row.getValue("solved")}</div>,
+  },
 ];
 
 function Leaderboard() {
@@ -94,21 +110,31 @@ function Leaderboard() {
       try {
         const promises = leetCodeUsernames.map(async (user) => {
           try {
-            const response = await fetch(
-              `https://alfa-leetcode-api.onrender.com/${user.username}/contest`
-            );
-            const result = await response.json();
+            const [contestResponse, solvedResponse] = await Promise.all([
+              fetch(
+                `https://alfa-leetcode-api.onrender.com/${user.username}/contest`
+              ),
+              fetch(
+                `https://alfa-leetcode-api.onrender.com/${user.username}/solved`
+              ),
+            ]);
+
+            const contestResult = await contestResponse.json();
+            const solvedResult = await solvedResponse.json();
+
             return {
               id: user.username,
               username: user.name,
-              rating: Math.round(result.contestRating || 0),
-              contests: result.contestAttend || 0,
+              rating: Math.round(contestResult.contestRating || 0),
+              solved: solvedResult.solvedProblem || 0,
+              contests: contestResult.contestAttend || 0,
             };
           } catch (error) {
             return {
               id: user.username,
               username: user.name,
               rating: 0,
+              solved: 0,
               contests: 0,
             };
           }
@@ -155,7 +181,6 @@ function Leaderboard() {
   });
 
   return (
-    // Added bg-background and text-foreground for proper dark mode base
     <div className="w-full bg-background text-foreground p-4 md:p-8 lg:p-12 rounded-xl transition-colors">
       <div className="flex items-center py-4">
         <Input
@@ -203,7 +228,7 @@ function Leaderboard() {
                 >
                   <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <p>Fetching contest data...</p>
+                    <p>Fetching data...</p>
                   </div>
                 </TableCell>
               </TableRow>
