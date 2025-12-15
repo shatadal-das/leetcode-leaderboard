@@ -1,20 +1,6 @@
 "use client";
 
-import {
-  ColumnDef,
-  ColumnFiltersState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  SortingState,
-  useReactTable,
-} from "@tanstack/react-table";
-import { ArrowUpDown, Loader2 } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ColumnDef, flexRender } from "@tanstack/react-table";
 import {
   Table,
   TableBody,
@@ -22,28 +8,46 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { useEffect, useState } from "react";
+} from "./ui/table";
+import { Skeleton } from "./ui/skeleton";
 import LeaderboardRow from "./leaderboard-row";
+import {
+  ColumnFiltersState,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
+import { ArrowUpDown, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useEffect, useState } from "react";
 import { leetCodeUsernames } from "@/lib/leetcode-usernames";
-// Import the Server Action we created
 import { getLeaderboardData } from "@/app/actions/get-leaderboard-data";
+import { type LeaderboardData as User } from "@/app/actions/get-leaderboard-data";
+import OverlayLoader from "./overlay-loader";
+import { cn } from "@/lib/utils";
 
-export type User = {
-  id: string;
-  rank: number;
-  username: string;
-  rating: number;
-  solved: number;
-  contests: number;
-};
-
-export const columns: ColumnDef<User>[] = [
+const columns: ColumnDef<User>[] = [
   {
     accessorKey: "rank",
     header: "Rank",
     size: 10,
-    cell: ({ row }) => <span>#{row.getValue("rank")}</span>,
+    cell: ({ row }) =>
+      (() => {
+        const rank = row.getValue("rank") as number;
+        if (rank == 1)
+          return (
+            <div className="flex items-center gap-0.5">
+              <Trophy className="size-[0.9em]" />
+              {rank}
+            </div>
+          );
+
+        return <div>#{rank}</div>;
+      })(),
   },
   {
     accessorKey: "username",
@@ -55,15 +59,16 @@ export const columns: ColumnDef<User>[] = [
   },
   {
     accessorKey: "rating",
-    size: 20,
+    size: 15,
     header: ({ column }) => (
       <Button
         variant="ghost"
-        // CHANGE: Logic updated to sort Descending first
         onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
-        className="-ml-4 hover:bg-muted"
+        className={`-ml-4 hover:bg-muted cursor-pointer ${
+          column.getIsSorted() ? "text-foreground" : "text-muted-foreground"
+        }`}
       >
-        Contest Rating
+        Rating
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
@@ -71,35 +76,57 @@ export const columns: ColumnDef<User>[] = [
   },
   {
     accessorKey: "contests",
-    size: 20,
+    size: 10,
     header: ({ column }) => (
       <Button
         variant="ghost"
-        // CHANGE: Logic updated to sort Descending first
         onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
-        className="-ml-4 hover:bg-muted"
+        className={`-ml-4 hover:bg-muted cursor-pointer ${
+          column.getIsSorted() ? "text-foreground" : "text-muted-foreground"
+        }`}
       >
-        Total Contests
+        Contests
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
     cell: ({ row }) => <div>{row.getValue("contests")}</div>,
   },
   {
-    accessorKey: "solved",
-    size: 20,
+    id: "solved",
+    accessorFn: (row) => row.solved.easy + row.solved.medium + row.solved.hard,
+    size: 50,
     header: ({ column }) => (
       <Button
         variant="ghost"
-        // CHANGE: Logic updated to sort Descending first
         onClick={() => column.toggleSorting(column.getIsSorted() !== "desc")}
-        className="-ml-4 hover:bg-muted"
+        className={`-ml-4 hover:bg-muted cursor-pointer ${
+          column.getIsSorted() ? "text-foreground" : "text-muted-foreground"
+        }`}
       >
-        Total Solved
+        Questions Solved
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => <div>{row.getValue("solved")}</div>,
+    cell: ({ row }) =>
+      (() => {
+        const totalSolved = row.getValue("solved") as number;
+        const solved = row.original.solved;
+
+        return (
+          <div className="flex gap-1.5 items-baseline">
+            <span className="font-medium">{totalSolved}</span>
+            <div className="text-[0.9em] text-neutral-200">
+              <span>&#91;</span>
+              <span className="text-[#1cbaba]">{solved.easy}</span>
+              <span className="mr-0.5">,</span>
+              <span className="text-[#ffb700]">{solved.medium}</span>
+              <span className="mr-0.5">,</span>
+              <span className="text-[#f63737]">{solved.hard}</span>
+              <span>&#93;</span>
+            </div>
+          </div>
+        );
+      })(),
   },
 ];
 
@@ -109,15 +136,13 @@ function Leaderboard() {
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // fetch data on load
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
 
-        // Call the Server Action
         const results = await getLeaderboardData(leetCodeUsernames);
-
-        // Sort and Rank on the client side
         const sortedResults = results.sort((a, b) => b.rating - a.rating);
 
         const rankedUsers: User[] = sortedResults.map((user, index) => ({
@@ -135,6 +160,12 @@ function Leaderboard() {
 
     fetchData();
   }, []);
+
+  // change default sorting based on loading state
+  useEffect(() => {
+    if (loading) setSorting([]);
+    else setSorting([{ id: "rating", desc: true }]);
+  }, [loading]);
 
   const table = useReactTable({
     data,
@@ -164,13 +195,22 @@ function Leaderboard() {
           value={
             (table.getColumn("username")?.getFilterValue() as string) ?? ""
           }
-          onChange={(event) =>
-            table.getColumn("username")?.setFilterValue(event.target.value)
+          onChange={(e) =>
+            table.getColumn("username")?.setFilterValue(e.target.value)
           }
           className="max-w-sm bg-muted/50 border-muted-foreground/20 focus-visible:ring-primary"
         />
       </div>
-      <div className="rounded-md border border-border overflow-hidden">
+
+      <div
+        className={cn(
+          "rounded-md border border-border overflow-hidden relative",
+          loading && "min-h-100"
+        )}
+      >
+        {loading && <OverlayLoader />}
+
+        {/* Leaderboard Table */}
         <Table>
           <TableHeader className="bg-muted/50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -197,17 +237,15 @@ function Leaderboard() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-32 text-center"
-                >
-                  <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <p>Fetching contest data...</p>
-                  </div>
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 10 }).map((_, rowIndex) => (
+                <TableRow key={rowIndex} className="hover:bg-transparent">
+                  {columns.map((_, colIndex) => (
+                    <TableCell key={colIndex}>
+                      <Skeleton className="h-8 w-full rounded-md" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
             ) : table.getRowModel().rows?.length ? (
               table
                 .getRowModel()
@@ -225,6 +263,8 @@ function Leaderboard() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Table Footer */}
       <div className="flex items-center justify-end space-x-2 py-4">
         <span className="text-sm text-muted-foreground mr-2">
           Page {table.getState().pagination.pageIndex + 1} of{" "}
@@ -244,7 +284,7 @@ function Leaderboard() {
           size="sm"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
-          className="border-muted-foreground/20 hover:bg-muted hover:text-foreground"
+          className="border-muted-foreground/20 hover:bg-muted hover:text-foreground "
         >
           Next
         </Button>

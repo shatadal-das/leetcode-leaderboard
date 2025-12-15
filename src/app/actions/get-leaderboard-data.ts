@@ -13,9 +13,12 @@ type LeetCodeUserConfig = {
 export type LeaderboardData = {
   id: string;
   username: string;
-  rank: number;
   rating: number;
-  solved: number;
+  solved: {
+    easy: number;
+    medium: number;
+    hard: number;
+  };
   contests: number;
 };
 
@@ -38,37 +41,26 @@ const USER_DATA_QUERY = `
 
 async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
   try {
-    // FIX: Pass a single object containing both 'query' and 'variables'
     const response = await leetcode.graphql({
       query: USER_DATA_QUERY,
       variables: { username: user.username },
     });
 
     const data = response.data;
+    // console.dir(data, { depth: null });
 
-    // Safety check if user exists or data is missing
-    if (!data || !data.matchedUser) {
-      // Sometimes user exists but has no contest data; handle gracefully
-      const rating = Math.round(data?.userContestRanking?.rating || 0);
-      const contests = data?.userContestRanking?.attendedContestsCount || 0;
+    if (!data || !data.matchedUser) throw new Error("User not found");
 
-      // If matchedUser is null, they might have deleted account or changed name
-      if (!data.matchedUser) throw new Error("User not found");
+    const subs = data.matchedUser.submitStats.acSubmissionNum as {
+      difficulty: "All" | "Easy" | "Medium" | "Hard";
+      count: number;
+    }[];
 
-      return {
-        id: user.username,
-        username: user.name,
-        rank: 0,
-        rating,
-        solved: 0,
-        contests,
-      };
-    }
-
-    const solvedCount =
-      data.matchedUser.submitStats.acSubmissionNum.find(
-        (s: { difficulty: string; count: number }) => s.difficulty === "All"
-      )?.count || 0;
+    const solved = {
+      easy: subs.find((sub) => sub.difficulty === "Easy")?.count || 0,
+      medium: subs.find((sub) => sub.difficulty === "Medium")?.count || 0,
+      hard: subs.find((sub) => sub.difficulty === "Hard")?.count || 0,
+    };
 
     const rating = Math.round(data.userContestRanking?.rating || 0);
     const contests = data.userContestRanking?.attendedContestsCount || 0;
@@ -76,19 +68,22 @@ async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
     return {
       id: user.username,
       username: user.name,
-      rank: 0,
       rating,
-      solved: solvedCount,
+      solved,
       contests,
     };
   } catch (error) {
     console.warn(`Error fetching ${user.username}, returning default.`);
+
     return {
       id: user.username,
       username: user.name,
-      rank: 0,
       rating: 0,
-      solved: 0,
+      solved: {
+        easy: 0,
+        medium: 0,
+        hard: 0,
+      },
       contests: 0,
     };
   }
@@ -114,5 +109,5 @@ export const getLeaderboardData = unstable_cache(
     return await fetchInBatches(users, 10);
   },
   ["leetcode-leaderboard-data"],
-  { revalidate: 3600 }
+  { revalidate: process.env.NODE_ENV === "development" ? false : 60 * 60 }
 );

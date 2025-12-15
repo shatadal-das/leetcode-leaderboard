@@ -1,6 +1,7 @@
+"use client";
 import { flexRender, Row } from "@tanstack/react-table";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { User } from "./leaderboard";
+import { type LeaderboardData as User } from "@/app/actions/get-leaderboard-data";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 

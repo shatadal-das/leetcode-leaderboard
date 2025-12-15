@@ -18,7 +18,7 @@ export const leetCodeUsernames: { name: string; username: string }[] = [
   { name: "Kartik Gupta", username: "Kartik__gupta__" },
   { name: "Likhit Rajendra Meshram", username: "Yytgq17NLy" },
   { name: "Prabhakar Kant Kuldeep", username: "Prabhakarkant" },
-  { name: "Altaf Raja", username: "eisen_bear" },
+  { name: "Altaf Raja", username: "eisen_bear__" },
   { name: "Appurvi Garg", username: "Appurvi_garg" },
   { name: "Mukul Dev Singh", username: "Mukul_1903" },
   { name: "Ravi Kumar Mahto", username: "Ravihzb" },
@@ -32,5 +32,4 @@ export const leetCodeUsernames: { name: string; username: string }[] = [
   { name: "Vishali", username: "Vishali_Banga" },
   { name: "Bhavishya Sisodiya", username: "Bhavishya_12" },
   { name: "Shivam Singh", username: "ShivamSingh_126" },
-  { name: "Robin Poonia", username: "robin_poonia" },
 ];
