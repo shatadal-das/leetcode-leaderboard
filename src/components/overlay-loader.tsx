@@ -7,7 +7,7 @@ type Props = {
 function OverlayLoader({ progress }: Props) {
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px]">
-      <div className="relative flex flex-col items-center gap-4 px-16 py-6 bg-background/95 rounded-xl shadow-2xl shadow-black/50 border border-neutral-800 w-max overflow-hidden">
+      <div className="relative flex w-max flex-col items-center gap-4 px-16 py-6 bg-background/95 rounded-xl shadow-lg shadow-neutral-900 border border-neutral-700 overflow-hidden">
         <LeetCodeLogo className="h-10 animate-pulse" />
 
         <div className="flex flex-col items-center gap-2 w-full">
