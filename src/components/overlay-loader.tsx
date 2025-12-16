@@ -1,23 +1,36 @@
 import { SVGProps } from "react";
 
-function OverlayLoader() {
+type Props = {
+  progress: number;
+};
+
+function OverlayLoader({ progress }: Props) {
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px]">
-      <div className="flex flex-col items-center gap-4 px-6 py-4 bg-background/80 rounded-xl shadow-lg shadow-neutral-900 border border-neutral-700">
+      <div className="relative flex flex-col items-center gap-4 px-16 py-6 bg-background/95 rounded-xl shadow-2xl shadow-black/50 border border-neutral-800 w-max overflow-hidden">
         <LeetCodeLogo className="h-10 animate-pulse" />
 
-        <p className="text-sm flex items-center justify-center font-medium text-muted-foreground">
-          Fetching data
-          <span className="flex ml-1 text-2xl">
-            <span className="animate-bounce [animation-delay:-0.3s]">
-              &#46;
+        <div className="flex flex-col items-center gap-2 w-full">
+          <p className="text-sm font-medium text-muted-foreground flex items-center">
+            <span>Fetching data</span>
+            <span className="flex ml-1 text-[1.5em]">
+              <span className="animate-bounce [animation-delay:-0.3s] text-easy-q">
+                &#46;
+              </span>
+              <span className="animate-bounce [animation-delay:-0.15s] text-medium-q">
+                &#46;
+              </span>
+              <span className="animate-bounce text-hard-q">&#46;</span>
             </span>
-            <span className="animate-bounce [animation-delay:-0.15s]">
-              &#46;
-            </span>
-            <span className="animate-bounce">&#46;</span>
-          </span>
-        </p>
+          </p>
+
+          <div className="h-0.5 w-full absolute bottom-0 left-0 right-0 bg-neutral-700 rounded-full">
+            <div
+              className="h-full bg-[#FFA116] transition-all duration-300 ease-out rounded-full"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

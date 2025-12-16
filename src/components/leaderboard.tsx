@@ -117,11 +117,11 @@ const columns: ColumnDef<User>[] = [
             <span className="font-medium">{totalSolved}</span>
             <div className="text-[0.9em] text-neutral-200">
               <span>&#91;</span>
-              <span className="text-[#1cbaba]">{solved.easy}</span>
+              <span className="text-easy-q">{solved.easy}</span>
               <span className="mr-0.5">,</span>
-              <span className="text-[#ffb700]">{solved.medium}</span>
+              <span className="text-medium-q">{solved.medium}</span>
               <span className="mr-0.5">,</span>
-              <span className="text-[#f63737]">{solved.hard}</span>
+              <span className="text-hard-q">{solved.hard}</span>
               <span>&#93;</span>
             </div>
           </div>
@@ -135,20 +135,30 @@ function Leaderboard() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
 
-  // fetch data on load
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setProgress(0);
 
-        const results = await getLeaderboardData(leetCodeUsernames);
-        const sortedResults = results.sort((a, b) => b.rating - a.rating);
+        const BATCH_SIZE = 10;
+        const totalUsers = leetCodeUsernames.length;
+        const allUsers: User[] = [];
 
-        const rankedUsers: User[] = sortedResults.map((user, index) => ({
-          ...user,
-          rank: index + 1,
-        }));
+        for (let i = 0; i < totalUsers; i += BATCH_SIZE) {
+          const batch = leetCodeUsernames.slice(i, i + BATCH_SIZE);
+          const batchResults = await getLeaderboardData(batch);
+
+          allUsers.push(...batchResults);
+
+          setProgress(Math.round(((i + batch.length) / totalUsers) * 100));
+        }
+
+        const rankedUsers = allUsers
+          .sort((a, b) => b.rating - a.rating)
+          .map((user, index) => ({ ...user, rank: index + 1 }));
 
         setData(rankedUsers);
       } catch (error) {
@@ -161,11 +171,11 @@ function Leaderboard() {
     fetchData();
   }, []);
 
-  // change default sorting based on loading state
   useEffect(() => {
-    if (loading) setSorting([]);
-    else setSorting([{ id: "rating", desc: true }]);
-  }, [loading]);
+    if (!loading && data.length > 0) {
+      setSorting([{ id: "rating", desc: true }]);
+    }
+  }, [loading, data.length]);
 
   const table = useReactTable({
     data,
@@ -208,7 +218,7 @@ function Leaderboard() {
           loading && "min-h-100"
         )}
       >
-        {loading && <OverlayLoader />}
+        {loading && <OverlayLoader progress={progress} />}
 
         {/* Leaderboard Table */}
         <Table>

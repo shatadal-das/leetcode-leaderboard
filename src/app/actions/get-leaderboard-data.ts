@@ -5,7 +5,7 @@ import { unstable_cache } from "next/cache";
 
 const leetcode = new LeetCode();
 
-type LeetCodeUserConfig = {
+export type LeetCodeUserConfig = {
   username: string;
   name: string;
 };
@@ -13,6 +13,7 @@ type LeetCodeUserConfig = {
 export type LeaderboardData = {
   id: string;
   username: string;
+  rank?: number;
   rating: number;
   solved: {
     easy: number;
@@ -47,7 +48,6 @@ async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
     });
 
     const data = response.data;
-    // console.dir(data, { depth: null });
 
     if (!data || !data.matchedUser) throw new Error("User not found");
 
@@ -73,8 +73,6 @@ async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
       contests,
     };
   } catch (error) {
-    console.warn(`Error fetching ${user.username}, returning default.`);
-
     return {
       id: user.username,
       username: user.name,
@@ -89,25 +87,14 @@ async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
   }
 }
 
-async function fetchInBatches(users: LeetCodeUserConfig[], batchSize: number) {
-  const results: LeaderboardData[] = [];
+export const getLeaderboardData = async (users: LeetCodeUserConfig[]) => {
+  const getCachedBatch = unstable_cache(
+    async (batchUsers: LeetCodeUserConfig[]) => {
+      return await Promise.all(batchUsers.map((user) => fetchUser(user)));
+    },
+    [`leetcode-batch-${users.map((u) => u.username).join("-")}`],
+    { revalidate: 60 }
+  );
 
-  for (let i = 0; i < users.length; i += batchSize) {
-    const batch = users.slice(i, i + batchSize);
-    const batchResults = await Promise.all(
-      batch.map((user) => fetchUser(user))
-    );
-    results.push(...batchResults);
-  }
-
-  return results;
-}
-
-export const getLeaderboardData = unstable_cache(
-  async (users: LeetCodeUserConfig[]) => {
-    // Fetch 10 users at a time to prevent rate limiting
-    return await fetchInBatches(users, 10);
-  },
-  ["leetcode-leaderboard-data"],
-  { revalidate: process.env.NODE_ENV === "development" ? false : 60 * 60 }
-);
+  return await getCachedBatch(users);
+};

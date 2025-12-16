@@ -3,6 +3,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+
+@theme {
+  --color-easy-q: #1cbaba;
+  --color-medium-q: #ffb700;
+  --color-hard-q: #f63737;
+}
+
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
