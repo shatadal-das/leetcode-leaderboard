@@ -1,4 +1,6 @@
-export const leetCodeUsernames: { name: string; username: string }[] = [
+export type UserListData = { name: string; username: string };
+
+export const firstYearUsers: UserListData[] = [
   { name: "Nikhil Idiculla", username: "LiKh1n" },
   { name: "Akarshan Pathak", username: "Akarshan_pathak" },
   { name: "Ram Sankar S", username: "RamSankarS" },
@@ -32,4 +34,50 @@ export const leetCodeUsernames: { name: string; username: string }[] = [
   { name: "Vishali", username: "Vishali_Banga" },
   { name: "Bhavishya Sisodiya", username: "Bhavishya_12" },
   { name: "Shivam Singh", username: "ShivamSingh_126" },
+];
+
+export const secondYearUsers: UserListData[] = [
+  { name: "Li Hao", username: "lee215" },
+  { name: "Andrew Wice", username: "awice" },
+  { name: "Wisdom Peak", username: "wisdompeak" },
+  { name: "Stefan Pochmann", username: "StefanPochmann" },
+  { name: "Yashar", username: "yashar" },
+  { name: "Votrubac", username: "votrubac" },
+  { name: "Fisher Coder", username: "fishercoder" },
+  { name: "Huahua", username: "huahua" },
+  { name: "Rock", username: "rock" },
+  { name: "WalkCCC", username: "walkccc" },
+  { name: "Alex Yu", username: "alexander-yu" },
+  { name: "NeetCode", username: "neetcode" },
+  { name: "Sean Prashad", username: "SeanPrashad" },
+  { name: "Kevin Naughton", username: "KevinNaughtonJr" },
+  { name: "Errichto", username: "errichto" },
+  { name: "DBabichev", username: "dbabichev" },
+  { name: "Tushar Roy", username: "tusharroy25" },
+  { name: "Mission Peace", username: "mission-peace" },
+  { name: "Kumar Gaurav", username: "kumar-gaurav" },
+  { name: "Ye15", username: "ye15" },
+];
+
+export const thirdYearUsers: UserListData[] = [
+  { name: "LeetCode Official", username: "leetcode" },
+  { name: "Zhengyang", username: "zhengyang2015" },
+  { name: "Shivam Gupta", username: "shivamgupta" },
+  { name: "Jingwei Li", username: "jingweili" },
+  { name: "Justin Chen", username: "justinchen" },
+  { name: "Akshay Rajput", username: "akshayrajput" },
+  { name: "Min Cost Max Flow", username: "mincostmaxflow" },
+  { name: "Siyang Yuan", username: "siyangyuan" },
+  { name: "Yangshun Tay", username: "yangshun" },
+  { name: "Coding Simplified", username: "codingsimplified" },
+  { name: "LC Solution", username: "lcsolution" },
+  { name: "Abhinav Gupta", username: "abhinavgupta" },
+  { name: "Harshit Gupta", username: "harshitgupta" },
+  { name: "AlgoMonster", username: "algomonster" },
+  { name: "CodeWithMik", username: "codewithmik" },
+  { name: "Ankit Kumar", username: "ankitkumar" },
+  { name: "Rishabh Mishra", username: "rishabhmishra" },
+  { name: "Dynamic Programming", username: "dynamicprogramming" },
+  { name: "Binary Search", username: "binarysearch" },
+  { name: "Graph Theory", username: "graphtheory" },
 ];

@@ -20,15 +20,36 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Trophy } from "lucide-react";
+import { ArrowUpDown, ChevronDown, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
-import { leetCodeUsernames } from "@/lib/leetcode-usernames";
+import {
+  firstYearUsers,
+  secondYearUsers,
+  thirdYearUsers,
+  type UserListData,
+} from "@/lib/leetcode-usernames";
 import { getLeaderboardData } from "@/app/actions/get-leaderboard-data";
 import { type LeaderboardData as User } from "@/app/actions/get-leaderboard-data";
 import OverlayLoader from "./overlay-loader";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+
+type BatchKey = "1st Year" | "2nd Year" | "3rd Year";
+
+const BATCH_CONFIG: Record<BatchKey, UserListData[]> = {
+  "1st Year": firstYearUsers,
+  "2nd Year": secondYearUsers,
+  "3rd Year": thirdYearUsers,
+};
+
+const STORAGE_KEY = "leetcode_leaderboard_batch_preference";
 
 const columns: ColumnDef<User>[] = [
   {
@@ -136,19 +157,44 @@ function Leaderboard() {
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [selectedBatch, setSelectedBatch] = useState<BatchKey | undefined>();
+
+  useEffect(() => {
+    const savedBatch = localStorage.getItem(STORAGE_KEY);
+    if (savedBatch && Object.keys(BATCH_CONFIG).includes(savedBatch)) {
+      setSelectedBatch(savedBatch as BatchKey);
+    } else {
+      setSelectedBatch("1st Year");
+    }
+  }, []);
+
+  const handleBatchChange = (batch: BatchKey) => {
+    setSelectedBatch(batch);
+    localStorage.setItem(STORAGE_KEY, batch);
+  };
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!selectedBatch) return;
+
       try {
         setLoading(true);
         setProgress(0);
+        setData([]);
 
+        const currentUserList = BATCH_CONFIG[selectedBatch];
         const BATCH_SIZE = 10;
-        const totalUsers = leetCodeUsernames.length;
+        const totalUsers = currentUserList.length;
         const allUsers: User[] = [];
 
+        if (totalUsers === 0) {
+          setData([]);
+          setLoading(false);
+          return;
+        }
+
         for (let i = 0; i < totalUsers; i += BATCH_SIZE) {
-          const batch = leetCodeUsernames.slice(i, i + BATCH_SIZE);
+          const batch = currentUserList.slice(i, i + BATCH_SIZE);
           const batchResults = await getLeaderboardData(batch);
 
           allUsers.push(...batchResults);
@@ -169,7 +215,7 @@ function Leaderboard() {
     };
 
     fetchData();
-  }, []);
+  }, [selectedBatch]);
 
   useEffect(() => {
     if (!loading && data.length > 0) {
@@ -198,10 +244,10 @@ function Leaderboard() {
   });
 
   return (
-    <div className="w-full bg-background text-foreground p-4 md:p-8 lg:p-12 rounded-xl transition-colors">
-      <div className="flex items-center py-4">
+    <div className="w-full bg-background text-foreground rounded-xl transition-colors">
+      <div className="flex items-center justify-between py-4 gap-4">
         <Input
-          placeholder="Filter username..."
+          placeholder="search user by name..."
           value={
             (table.getColumn("username")?.getFilterValue() as string) ?? ""
           }
@@ -210,6 +256,32 @@ function Leaderboard() {
           }
           className="max-w-sm bg-muted/50 border-muted-foreground/20 focus-visible:ring-primary"
         />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger disabled={loading} asChild>
+            <Button
+              variant="outline"
+              className="min-w-[140px] justify-between cursor-pointer"
+            >
+              {selectedBatch}
+              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="shadow-2xl shadow-neutral-950"
+          >
+            {(Object.keys(BATCH_CONFIG) as BatchKey[]).map((batchKey) => (
+              <DropdownMenuItem
+                key={batchKey}
+                onClick={() => handleBatchChange(batchKey)}
+                className="cursor-pointer"
+              >
+                {batchKey}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div
@@ -220,7 +292,6 @@ function Leaderboard() {
       >
         {loading && <OverlayLoader progress={progress} />}
 
-        {/* Leaderboard Table */}
         <Table>
           <TableHeader className="bg-muted/50">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -274,7 +345,6 @@ function Leaderboard() {
         </Table>
       </div>
 
-      {/* Table Footer */}
       <div className="flex items-center justify-end space-x-2 py-4">
         <span className="text-sm text-muted-foreground mr-2">
           Page {table.getState().pagination.pageIndex + 1} of{" "}
@@ -285,7 +355,7 @@ function Leaderboard() {
           size="sm"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
-          className="border-muted-foreground/20 hover:bg-muted hover:text-foreground"
+          className="border-muted-foreground/20 hover:bg-muted hover:text-foreground cursor-pointer"
         >
           Previous
         </Button>
@@ -294,7 +364,7 @@ function Leaderboard() {
           size="sm"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
-          className="border-muted-foreground/20 hover:bg-muted hover:text-foreground "
+          className="border-muted-foreground/20 hover:bg-muted hover:text-foreground cursor-pointer"
         >
           Next
         </Button>

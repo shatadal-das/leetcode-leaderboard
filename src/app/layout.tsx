@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Leaderboard",
-  description: "Contest Leaderboard",
+  title: "Leetcode Eliteboard - MCA",
+  description: "A leaderboard showcasing MCA students' top ranked Leetcode users from each batch.",
 };
 
 export default function RootLayout({
