@@ -203,7 +203,13 @@ function Leaderboard() {
         }
 
         const rankedUsers = allUsers
-          .sort((a, b) => b.rating - a.rating)
+          .sort((a, b) => {
+            if (b.rating === a.rating) {
+              return b.contests - a.contests;
+            }
+            
+            return b.rating - a.rating;
+          })
           .map((user, index) => ({ ...user, rank: index + 1 }));
 
         setData(rankedUsers);
