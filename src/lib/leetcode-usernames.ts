@@ -30,7 +30,7 @@ export const firstYearUsers: UserListData[] = [
   { name: "Dinesh Saini", username: "dineshsaini_" },
   { name: "Abhay Kodape", username: "Abhay_Kodape" },
   { name: "Sindhuja Kumari", username: "Sindhuja_Kumari" },
-  { name: "Shatadal Das", username: "Shatadal_Das" },
+  { name: "Shatadal Das", username: "shatadal__das" },
   { name: "Vishali", username: "Vishali_Banga" },
   { name: "Bhavishya Sisodiya", username: "Bhavishya_12" },
   { name: "Shivam Singh", username: "ShivamSingh_126" },
