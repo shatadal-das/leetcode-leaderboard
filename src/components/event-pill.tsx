@@ -57,6 +57,13 @@ function EventPill({ contest }: { contest: Contest }) {
 
   const SiteLogo = icons[contest.site];
 
+  const contestName =
+    !(contest.site === "CodeForces" && contest.name.includes("Div."))
+      ? contest.name
+      : contest.name.split("(")[1].split(")")[0];
+
+  console.table({ contestName });
+  
   return (
     <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>
@@ -76,7 +83,7 @@ function EventPill({ contest }: { contest: Contest }) {
               </span>
               <SiteLogo className="size-5" />
             </div>
-            <span className="truncate opacity-90">{contest.name}</span>
+            <span className="truncate opacity-90">{contestName}</span>
           </div>
         </a>
       </HoverCardTrigger>
