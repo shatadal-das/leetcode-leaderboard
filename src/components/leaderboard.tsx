@@ -1,18 +1,16 @@
 "use client";
 
-import { ColumnDef, flexRender } from "@tanstack/react-table";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./ui/table";
-import { Skeleton } from "./ui/skeleton";
-import LeaderboardRow from "./leaderboard-row";
+  getLeaderboardData,
+  type LeaderboardData as User,
+} from "@/app/actions/get-leaderboard-data";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
+  ColumnDef,
   ColumnFiltersState,
+  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -21,35 +19,37 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ArrowUpDown, ChevronDown, Trophy } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  firstYearUsers,
-  secondYearUsers,
-  thirdYearUsers,
-  type UserListData,
-} from "@/lib/leetcode-usernames";
-import { getLeaderboardData } from "@/app/actions/get-leaderboard-data";
-import { type LeaderboardData as User } from "@/app/actions/get-leaderboard-data";
+import LeaderboardRow from "./leaderboard-row";
 import OverlayLoader from "./overlay-loader";
-import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { Skeleton } from "./ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/table";
 
-type BatchKey = "1st Year" | "2nd Year" | "3rd Year";
+export type BatchKey = "1st Year" | "2nd Year";
+// | "3rd Year";
 
-const BATCH_CONFIG: Record<BatchKey, UserListData[]> = {
-  "1st Year": firstYearUsers,
-  "2nd Year": secondYearUsers,
-  "3rd Year": thirdYearUsers,
-};
+const BATCHES: BatchKey[] = [
+  "1st Year",
+  "2nd Year",
+  // "3rd Year",
+];
 
 const STORAGE_KEY = "leetcode_leaderboard_batch_preference";
+const CLIENT_TIMEOUT_MS = 30000;
 
 const columns: ColumnDef<User>[] = [
   {
@@ -74,9 +74,25 @@ const columns: ColumnDef<User>[] = [
     accessorKey: "username",
     header: "Username",
     size: 40,
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("username")}</div>
-    ),
+    cell: ({ row }) => {
+      const profileLink = row.original.profileLink;
+      const username = row.getValue("username") as string;
+
+      if (profileLink) {
+        return (
+          <Link
+            href={profileLink}
+            rel="noreferrer"
+            className="font-medium hover:underline underline-offset-4 decoration-primary"
+            target="_blank"
+          >
+            {username}
+          </Link>
+        );
+      }
+
+      return <div className="font-medium">{username}</div>;
+    },
   },
   {
     accessorKey: "rating",
@@ -132,10 +148,13 @@ const columns: ColumnDef<User>[] = [
       (() => {
         const totalSolved = row.getValue("solved") as number;
         const solved = row.original.solved;
+        const todaySolved = row.original.todaySolved;
 
         return (
           <div className="flex gap-1.5 items-baseline">
-            <span className="font-medium">{totalSolved}</span>
+            <div className="font-medium flex gap-1">
+              <div>{totalSolved}</div>
+            </div>
             <div className="text-[0.9em] text-neutral-200">
               <span>&#91;</span>
               <span className="text-easy-q">{solved.easy}</span>
@@ -143,6 +162,11 @@ const columns: ColumnDef<User>[] = [
               <span className="text-medium-q">{solved.medium}</span>
               <span className="mr-0.5">,</span>
               <span className="text-hard-q">{solved.hard}</span>
+              <span>&#93;</span>
+            </div>
+            <div className="text-[0.9em] text-neutral-200">
+              <span>&#91;</span>
+              <span className="text-blue-300">{todaySolved}</span>
               <span>&#93;</span>
             </div>
           </div>
@@ -156,12 +180,11 @@ function Leaderboard() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState(0);
   const [selectedBatch, setSelectedBatch] = useState<BatchKey | undefined>();
 
   useEffect(() => {
     const savedBatch = localStorage.getItem(STORAGE_KEY);
-    if (savedBatch && Object.keys(BATCH_CONFIG).includes(savedBatch)) {
+    if (savedBatch && BATCHES.includes(savedBatch as BatchKey)) {
       setSelectedBatch(savedBatch as BatchKey);
     } else {
       setSelectedBatch("1st Year");
@@ -174,53 +197,45 @@ function Leaderboard() {
   };
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       if (!selectedBatch) return;
 
       try {
         setLoading(true);
-        setProgress(0);
         setData([]);
 
-        const currentUserList = BATCH_CONFIG[selectedBatch];
-        const BATCH_SIZE = 10;
-        const totalUsers = currentUserList.length;
-        const allUsers: User[] = [];
+        const timeoutPromise = new Promise<User[]>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Client request timeout")),
+            CLIENT_TIMEOUT_MS,
+          ),
+        );
+        try {
+          const rankedUsers = await Promise.race([
+            getLeaderboardData(selectedBatch),
+            timeoutPromise,
+          ]);
 
-        if (totalUsers === 0) {
+          if (isMounted) {
+            setData(rankedUsers);
+          }
+        } catch (error) {
           setData([]);
-          setLoading(false);
-          return;
         }
-
-        for (let i = 0; i < totalUsers; i += BATCH_SIZE) {
-          const batch = currentUserList.slice(i, i + BATCH_SIZE);
-          const batchResults = await getLeaderboardData(batch);
-
-          allUsers.push(...batchResults);
-
-          setProgress(Math.round(((i + batch.length) / totalUsers) * 100));
-        }
-
-        const rankedUsers = allUsers
-          .sort((a, b) => {
-            if (b.rating === a.rating) {
-              return b.contests - a.contests;
-            }
-            
-            return b.rating - a.rating;
-          })
-          .map((user, index) => ({ ...user, rank: index + 1 }));
-
-        setData(rankedUsers);
-      } catch (error) {
-        console.error("Failed to fetch leaderboard data", error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [selectedBatch]);
 
   useEffect(() => {
@@ -277,7 +292,7 @@ function Leaderboard() {
             align="end"
             className="shadow-2xl shadow-neutral-950"
           >
-            {(Object.keys(BATCH_CONFIG) as BatchKey[]).map((batchKey) => (
+            {BATCHES.map((batchKey) => (
               <DropdownMenuItem
                 key={batchKey}
                 onClick={() => handleBatchChange(batchKey)}
@@ -293,10 +308,10 @@ function Leaderboard() {
       <div
         className={cn(
           "rounded-md border border-border overflow-hidden relative",
-          loading && "min-h-100"
+          loading && "min-h-100",
         )}
       >
-        {loading && <OverlayLoader progress={progress} />}
+        {loading && <OverlayLoader />}
 
         <Table>
           <TableHeader className="bg-muted/50">
@@ -315,7 +330,7 @@ function Leaderboard() {
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                   </TableHead>
                 ))}

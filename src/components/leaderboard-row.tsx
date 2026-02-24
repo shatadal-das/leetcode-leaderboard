@@ -1,9 +1,8 @@
 "use client";
-import { flexRender, Row } from "@tanstack/react-table";
-import { TableCell, TableRow } from "@/components/ui/table";
 import { type LeaderboardData as User } from "@/app/actions/get-leaderboard-data";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
+import { flexRender, Row } from "@tanstack/react-table";
 
 type Props = {
   row: Row<User>;
@@ -44,17 +43,7 @@ const LeaderboardRow = ({ row }: Props) => {
             key={cell.id}
             className={cn("px-6 py-4", isRankCell ? rankCellClassName : "")}
           >
-            {isUserName ? (
-              <Link
-                href={`https://leetcode.com/u/${row.original.id}`}
-                className="font-medium hover:underline underline-offset-4 decoration-primary"
-                target="_blank"
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </Link>
-            ) : (
-              flexRender(cell.column.columnDef.cell, cell.getContext())
-            )}
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </TableCell>
         );
       })}

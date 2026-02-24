@@ -1,5 +1,7 @@
 "use server";
 
+import { BatchKey } from "@/components/leaderboard";
+import { firstYearUsers, secondYearUsers } from "@/lib/leetcode-usernames";
 import { LeetCode } from "leetcode-query";
 import { unstable_cache } from "next/cache";
 
@@ -20,7 +22,9 @@ export type LeaderboardData = {
     medium: number;
     hard: number;
   };
+  todaySolved: number;
   contests: number;
+  profileLink?: string;
 };
 
 const USER_DATA_QUERY = `
@@ -37,10 +41,21 @@ const USER_DATA_QUERY = `
       rating
       attendedContestsCount
     }
+    recentAcSubmissionList(username: $username, limit: 50) {
+      titleSlug
+      timestamp
+    }
   }
 `;
 
-async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
+async function fetchUser(
+  user: LeetCodeUserConfig,
+  isFirstYear: boolean,
+): Promise<LeaderboardData> {
+  const profileLink = isFirstYear
+    ? undefined
+    : `https://leetcode.com/u/${user.username}/`;
+
   try {
     const response = await leetcode.graphql({
       query: USER_DATA_QUERY,
@@ -50,6 +65,25 @@ async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
     const data = response.data;
 
     if (!data || !data.matchedUser) throw new Error("User not found");
+
+    const now = new Date();
+    const startOfTodayUTC = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    const startOfTodayTimestamp = startOfTodayUTC.getTime() / 1000;
+
+    const recentSubmissions = data.recentAcSubmissionList || [];
+    const uniqueTodaySolved = new Set();
+
+    recentSubmissions.forEach(
+      (sub: { titleSlug: string; timestamp: string }) => {
+        if (Number(sub.timestamp) >= startOfTodayTimestamp) {
+          uniqueTodaySolved.add(sub.titleSlug);
+        }
+      },
+    );
+
+    const todaySolved = uniqueTodaySolved.size;
 
     const subs = data.matchedUser.submitStats.acSubmissionNum as {
       difficulty: "All" | "Easy" | "Medium" | "Hard";
@@ -70,7 +104,9 @@ async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
       username: user.name,
       rating,
       solved,
+      todaySolved,
       contests,
+      profileLink,
     };
   } catch (error) {
     return {
@@ -82,19 +118,45 @@ async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
         medium: 0,
         hard: 0,
       },
+      todaySolved: 0,
       contests: 0,
+      profileLink,
     };
   }
 }
 
-export const getLeaderboardData = async (users: LeetCodeUserConfig[]) => {
-  const getCachedBatch = unstable_cache(
-    async (batchUsers: LeetCodeUserConfig[]) => {
-      return await Promise.all(batchUsers.map((user) => fetchUser(user)));
+export const getLeaderboardData = async (batchKey: BatchKey) => {
+  const isFirstYear = batchKey === "1st Year";
+  const users = isFirstYear ? firstYearUsers : secondYearUsers;
+
+  const getCachedData = unstable_cache(
+    async () => {
+      const BATCH_SIZE = 10;
+      const allUsers: LeaderboardData[] = [];
+
+      for (let i = 0; i < users.length; i += BATCH_SIZE) {
+        const batch = users.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map((user) => fetchUser(user, isFirstYear)),
+        );
+        allUsers.push(...batchResults);
+      }
+
+      const rankedUsers = allUsers
+        .sort((a, b) => {
+          if (b.rating === a.rating) {
+            return b.contests - a.contests;
+          }
+
+          return b.rating - a.rating;
+        })
+        .map((user, index) => ({ ...user, rank: index + 1 }));
+
+      return rankedUsers;
     },
-    [`leetcode-batch-${users.map((u) => u.username).join("-")}`],
-    { revalidate: 60 }
+    [`leetcode-leaderboard-${batchKey}`],
+    { revalidate: process.env.NODE_ENV === "development" ? false : 60 },
   );
 
-  return await getCachedBatch(users);
+  return await getCachedData();
 };

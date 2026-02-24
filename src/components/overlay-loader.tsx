@@ -1,10 +1,6 @@
 import { SVGProps } from "react";
 
-type Props = {
-  progress: number;
-};
-
-function OverlayLoader({ progress }: Props) {
+function OverlayLoader() {
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[2px]">
       <div className="relative flex w-max flex-col items-center gap-4 px-16 py-6 bg-background/95 rounded-xl shadow-lg shadow-neutral-900 border border-neutral-700 overflow-hidden">
@@ -23,13 +19,6 @@ function OverlayLoader({ progress }: Props) {
               <span className="animate-bounce text-hard-q">&#46;</span>
             </span>
           </p>
-
-          <div className="h-0.5 w-full absolute bottom-0 left-0 right-0 bg-neutral-700 rounded-full">
-            <div
-              className="h-full bg-[#FFA116] transition-all duration-300 ease-out rounded-full"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
         </div>
       </div>
     </div>
