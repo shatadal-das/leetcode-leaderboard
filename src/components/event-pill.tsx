@@ -1,14 +1,14 @@
 import type { Contest } from "@/app/actions/get-contests-data";
+import icons from "@/assets/icons";
 import { cn } from "@/lib/utils";
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
 } from "@radix-ui/react-hover-card";
-import { parseISO, format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ExternalLink } from "lucide-react";
 import { Button } from "./ui/button";
-import icons from "@/assets/icons";
 
 const formatDuration = (seconds: number) => {
   const hours = seconds / 3600;
@@ -44,7 +44,12 @@ export const PLATFORM_CONFIG: Record<
   CodeChef: {
     color:
       "bg-neutral-700/30 text-neutral-200 border-neutral-500/30 hover:bg-neutral-700/40",
-    label: "CodeChef",
+      label: "CodeChef",
+    },
+    AtCoder: {
+      color:
+      "bg-neutral-700/30 text-neutral-200 border-neutral-500/30 hover:bg-neutral-700/40",
+    label: "AtCoder",
   },
 };
 

@@ -17,7 +17,7 @@ function Filters({ loading, setFilters, filters }: Props) {
         Filter:
       </span>
       <div className="flex flex-wrap items-center gap-10">
-        {Object.keys(icons).map((platform) => (
+        {Object.entries(icons).map(([platform, Icon]) => (
           <div key={platform} className="flex items-center gap-2">
             <Switch
               id={platform}
@@ -29,8 +29,9 @@ function Filters({ loading, setFilters, filters }: Props) {
             />
             <Label
               htmlFor={platform}
-              className="text-neutral-300 font-medium cursor-pointer md:text-[1em] text-[0.7em]"
+              className="flex items-center gap-1.5 text-neutral-300 font-medium cursor-pointer md:text-[1em] text-[0.7em]"
             >
+              <Icon className="size-4 md:size-5" />
               {platform}
             </Label>
           </div>

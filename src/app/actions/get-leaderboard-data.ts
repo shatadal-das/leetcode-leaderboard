@@ -155,7 +155,7 @@ export const getLeaderboardData = async (batchKey: BatchKey) => {
       return rankedUsers;
     },
     [`leetcode-leaderboard-${batchKey}`],
-    { revalidate: process.env.NODE_ENV === "development" ? false : 60 },
+    { revalidate: process.env.NODE_ENV === "development" ? 1 : 60 },
   );
 
   return await getCachedData();

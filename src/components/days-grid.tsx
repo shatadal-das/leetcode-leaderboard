@@ -2,14 +2,14 @@ import type { Contest } from "@/app/actions/get-contests-data";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import {
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  startOfMonth,
-  startOfWeek,
+    eachDayOfInterval,
+    endOfMonth,
+    endOfWeek,
+    format,
+    isSameDay,
+    isSameMonth,
+    startOfMonth,
+    startOfWeek,
 } from "date-fns";
 import { useMemo } from "react";
 import EventPill from "./event-pill";
@@ -59,7 +59,7 @@ function DaysGrid({ currentDate, contestsByDay, loading }: Props) {
               {format(day, "d")}
             </span>
 
-            <div className="flex-1 min-h-0 w-full relative">
+            <div className="flex-1 min-h-[9rem] w-full relative">
               <ScrollArea className="h-full w-full pr-3">
                 <div className="space-y-1.5 pb-2">
                   {loading && isCurrentMonth && dayContests.length === 0 ? (

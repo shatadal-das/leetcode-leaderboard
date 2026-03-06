@@ -7,7 +7,7 @@ export interface Contest {
   start_time: string; // ISO String
   end_time: string; // ISO String
   duration: number; // Seconds
-  site: "LeetCode" | "CodeForces" | "CodeChef";
+  site: "LeetCode" | "CodeForces" | "CodeChef" | "AtCoder";
   status: "UPCOMING" | "ONGOING";
 }
 
@@ -118,14 +118,48 @@ async function getCodeChefContests(): Promise<Contest[]> {
   }
 }
 
+import { fetchUpcomingContests } from "@qatadaazzeh/atcoder-api";
+
+async function getAtCoderContests(): Promise<Contest[]> {
+  try {
+    const data = await fetchUpcomingContests();
+    if (!data) return [];
+
+    const now = new Date();
+
+    return data.map((c: any) => {
+      const startTimeStr = c.contestTime.replace('+0900', '+09:00');
+      const startTime = new Date(startTimeStr);
+      
+      const [hours, mins] = c.contestDuration.split(':').map(Number);
+      const durationSeconds = (hours * 3600) + (mins * 60);
+      const endTime = new Date(startTime.getTime() + durationSeconds * 1000);
+
+      return {
+        name: c.contestName,
+        url: c.contestUrl,
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        duration: durationSeconds,
+        site: "AtCoder",
+        status: startTime > now ? "UPCOMING" : "ONGOING",
+      };
+    });
+  } catch (e) {
+    console.error("AtCoder API fetch error:", e);
+    return [];
+  }
+}
+
 
 export async function fetchContestsAction(): Promise<Contest[]> {
-  const [lc, cf, cc] = await Promise.all([
+  const [lc, cf, cc, ac] = await Promise.all([
     getLeetCodeContests(),
     getCodeForcesContests(),
     getCodeChefContests(),
+    getAtCoderContests(),
   ]);
-  const all = [...lc, ...cf, ...cc].sort(
+  const all = [...lc, ...cf, ...cc, ...ac].sort(
     (a, b) =>
       new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
   );

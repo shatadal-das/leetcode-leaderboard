@@ -17,6 +17,7 @@ codechef
 */
 
 import { SVGProps } from "react";
+import atcoderLogo from "./atcoder.png";
 
 function LeetCode({ className, ...props }: SVGProps<SVGSVGElement>) {
   return (
@@ -83,4 +84,14 @@ function CodeChef({ className, ...props }: SVGProps<SVGSVGElement>) {
   );
 }
 
-export default { LeetCode, CodeForces, CodeChef };
+function AtCoder({ className, ...props }: any) {
+  return (
+    <img
+      src={atcoderLogo.src}
+      alt="AtCoder"
+      className={className}
+    />
+  );
+}
+
+export default { LeetCode, CodeForces, CodeChef, AtCoder };

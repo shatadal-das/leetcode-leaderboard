@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  fetchContestsAction,
-  type Contest,
+    fetchContestsAction,
+    type Contest,
 } from "@/app/actions/get-contests-data";
 import DaysGrid from "@/components/days-grid";
 import Filters from "@/components/filters";
@@ -30,6 +30,7 @@ function Calendar() {
     LeetCode: true,
     CodeForces: true,
     CodeChef: true,
+    AtCoder: true,
   });
 
   useEffect(() => {
@@ -85,7 +86,7 @@ function Calendar() {
 
         <Filters loading={loading} filters={filters} setFilters={setFilters} />
 
-        <div className="bg-neutral-900 rounded-xl border border-neutral-800 flex flex-col h-212.5 shadow-2xl">
+        <div className="bg-neutral-900 rounded-xl border border-neutral-800 flex flex-col min-h-[55rem] h-auto shadow-2xl">
           <div className="grid grid-cols-7 border-b border-neutral-800 bg-neutral-900/80 flex-none">
             {DAYS.map((day) => (
               <div
