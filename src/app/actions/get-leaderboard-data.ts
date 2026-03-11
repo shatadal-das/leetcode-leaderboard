@@ -50,11 +50,8 @@ const USER_DATA_QUERY = `
 
 async function fetchUser(
   user: LeetCodeUserConfig,
-  isFirstYear: boolean,
 ): Promise<LeaderboardData> {
-  const profileLink = isFirstYear
-    ? undefined
-    : `https://leetcode.com/u/${user.username}/`;
+  const profileLink = `https://leetcode.com/u/${user.username}/`;
 
   try {
     const response = await leetcode.graphql({
@@ -137,7 +134,7 @@ export const getLeaderboardData = async (batchKey: BatchKey) => {
       for (let i = 0; i < users.length; i += BATCH_SIZE) {
         const batch = users.slice(i, i + BATCH_SIZE);
         const batchResults = await Promise.all(
-          batch.map((user) => fetchUser(user, isFirstYear)),
+          batch.map((user) => fetchUser(user)),
         );
         allUsers.push(...batchResults);
       }
