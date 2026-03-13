@@ -4,7 +4,7 @@ export const firstYearUsers: UserListData[] = [
   { name: "Nikhil Idiculla", username: "LiKh1n" },
   { name: "Akarshan Pathak", username: "Akarshan_pathak" },
   { name: "Ram Sankar S", username: "RamSankarS" },
-  { name: "Baibhaw Agarwal", username: "Baibhaw_25" },
+  { name: "Baibhaw Agarwal", username: "Baibhav_Agarwal" },
   { name: "Sumit Goswami", username: "sumitgoswami0902" },
   { name: "Yash Gupta", username: "_Yash_gupta_05" },
   { name: "Sahil Mishra", username: "sahilmishraa_" },
