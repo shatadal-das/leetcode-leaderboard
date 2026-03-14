@@ -4,6 +4,8 @@ import {
   getLeaderboardData,
   type LeaderboardData as User,
 } from "@/app/actions/get-leaderboard-data";
+import guardianGif from "@/assets/guardian.gif";
+import knightGif from "@/assets/knight.gif";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -19,6 +21,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ArrowUpDown, ChevronDown, Trophy } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import LeaderboardRow from "./leaderboard-row";
@@ -78,6 +81,30 @@ const columns: ColumnDef<User>[] = [
       const profileLink = row.original.profileLink;
       const username = row.getValue("username") as string;
 
+      const UserName = () => (
+        <div className="flex gap-2 items-center font-medium">
+          {username}
+          {row.original.hasKnightBadge && (
+            <Image
+              src={knightGif}
+              alt="knight badge"
+              width={100}
+              height={100}
+              className="size-4"
+            />
+          )}
+          {row.original.hasGuardianBadge && (
+            <Image
+              src={guardianGif}
+              alt="guardian badge"
+              width={100}
+              height={100}
+              className="size-4"
+            />
+          )}
+        </div>
+      );
+
       if (profileLink) {
         return (
           <Link
@@ -86,12 +113,12 @@ const columns: ColumnDef<User>[] = [
             className="font-medium hover:underline underline-offset-4 decoration-primary"
             target="_blank"
           >
-            {username}
+            <UserName />
           </Link>
         );
       }
 
-      return <div className="font-medium">{username}</div>;
+      return <UserName />;
     },
   },
   {

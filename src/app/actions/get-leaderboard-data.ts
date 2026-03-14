@@ -25,6 +25,8 @@ export type LeaderboardData = {
   todaySolved: number;
   contests: number;
   profileLink?: string;
+  hasKnightBadge: boolean;
+  hasGuardianBadge: boolean; // Added Guardian badge status
 };
 
 const USER_DATA_QUERY = `
@@ -35,6 +37,12 @@ const USER_DATA_QUERY = `
           difficulty
           count
         }
+      }
+      contestBadge {
+        name
+      }
+      badges {
+        name
       }
     }
     userContestRanking(username: $username) {
@@ -48,9 +56,7 @@ const USER_DATA_QUERY = `
   }
 `;
 
-async function fetchUser(
-  user: LeetCodeUserConfig,
-): Promise<LeaderboardData> {
+async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
   const profileLink = `https://leetcode.com/u/${user.username}/`;
 
   try {
@@ -62,6 +68,21 @@ async function fetchUser(
     const data = response.data;
 
     if (!data || !data.matchedUser) throw new Error("User not found");
+
+    // --- Badge Logic ---
+    const contestBadge = data.matchedUser.contestBadge?.name || null;
+    const generalBadges =
+      data.matchedUser.badges?.map((b: { name: string }) => b.name) || [];
+
+    // Check Knight
+    const hasContestKnight = contestBadge === "Knight";
+    const hasGeneralKnight = generalBadges.includes("Knight");
+    const hasKnightBadge = hasContestKnight || hasGeneralKnight;
+
+    // Check Guardian
+    const hasContestGuardian = contestBadge === "Guardian";
+    const hasGeneralGuardian = generalBadges.includes("Guardian");
+    const hasGuardianBadge = hasContestGuardian || hasGeneralGuardian;
 
     const now = new Date();
     const startOfTodayUTC = new Date(
@@ -104,6 +125,8 @@ async function fetchUser(
       todaySolved,
       contests,
       profileLink,
+      hasKnightBadge,
+      hasGuardianBadge, // Return Guardian badge status
     };
   } catch (error) {
     return {
@@ -118,6 +141,8 @@ async function fetchUser(
       todaySolved: 0,
       contests: 0,
       profileLink,
+      hasKnightBadge: false,
+      hasGuardianBadge: false, // Default to false on error
     };
   }
 }
