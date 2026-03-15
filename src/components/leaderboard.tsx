@@ -86,6 +86,7 @@ const columns: ColumnDef<User>[] = [
           {username}
           {row.original.hasKnightBadge && (
             <Image
+              unoptimized
               src={knightGif}
               alt="knight badge"
               width={100}
@@ -95,6 +96,7 @@ const columns: ColumnDef<User>[] = [
           )}
           {row.original.hasGuardianBadge && (
             <Image
+              unoptimized
               src={guardianGif}
               alt="guardian badge"
               width={100}
@@ -136,7 +138,16 @@ const columns: ColumnDef<User>[] = [
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => <div>{row.getValue("rating")}</div>,
+    cell: ({ row }) => (
+      <Link
+        href={`https://entranthub.com/contests/leetcode/users/US/${row.original.profileLink?.split("/u/")[1]}`}
+        rel="noreferrer"
+        className="font-medium hover:underline underline-offset-4 decoration-primary"
+        target="_blank"
+      >
+        {row.original.rating}
+      </Link>
+    ),
   },
   {
     accessorKey: "contests",
