@@ -10,7 +10,7 @@ export const firstYearUsers: UserListData[] = [
   { name: "Sahil Mishra", username: "sahilmishraa_" },
   { name: "Chandrika Patidar", username: "chandrika_patidar" },
   { name: "Shiwangi Priya", username: "SPSR_08" },
-  // { name: "Anshu Kumar Mishra", username: "anshu777" },
+  { name: "Anshu Kumar Mishra", username: "Anshu666" },
   { name: "Shaurya Kajla", username: "JAI_RAJPUTANA" },
   { name: "Banoth Shiva", username: "banothshiva" },
   { name: "Sumit Patel", username: "Sumit_Patel_MANIT" },
