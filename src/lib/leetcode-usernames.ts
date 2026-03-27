@@ -50,6 +50,7 @@ export const secondYearUsers: UserListData[] = [
   { name: "Lavish Dabur", username: "lavishdabur" },
   { name: "Anshul Daksh", username: "anshul_daksh_009" },
   { name: "Ayush Gupta", username: "ayusome" },
+  { name: "Sachin Jha", username: "sachin_rodies" },
 ];
 
 export const thirdYearUsers: UserListData[] = [
