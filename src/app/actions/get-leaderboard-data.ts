@@ -47,6 +47,7 @@ export const getLeaderboardData = async (batchKey: BatchKey) => {
         profileLink: dbUser.profileLink || `https://leetcode.com/u/${user.username}/`,
         hasKnightBadge: dbUser.hasKnightBadge,
         hasGuardianBadge: dbUser.hasGuardianBadge,
+        lastUpdated: dbUser.lastUpdated,
       };
     }
     return {

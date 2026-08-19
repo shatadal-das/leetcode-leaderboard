@@ -21,10 +21,10 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronDown, Trophy } from "lucide-react";
+import { ArrowUpDown, ChevronDown, Trophy, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import LeaderboardRow from "./leaderboard-row";
 import OverlayLoader from "./overlay-loader";
 import {
@@ -220,9 +220,12 @@ interface LeaderboardProps {
 function Leaderboard({ initialData }: LeaderboardProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [batchCache, setBatchCache] = useState<Record<BatchKey, User[]>>(initialData || ({} as Record<BatchKey, User[]>));
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<BatchKey | undefined>();
+  const fetchId = useRef(0);
 
   useEffect(() => {
     const savedBatch = localStorage.getItem(STORAGE_KEY);
@@ -245,22 +248,45 @@ function Leaderboard({ initialData }: LeaderboardProps) {
       if (!selectedBatch) return;
 
       try {
-        if (initialData && initialData[selectedBatch]) {
-          setData(initialData[selectedBatch]);
+        let currentStaleData: User[] = [];
+        if (batchCache[selectedBatch]) {
+          currentStaleData = batchCache[selectedBatch];
+          setData(currentStaleData);
           setLoading(false);
         } else {
           setLoading(true);
-          // Fallback if initialData is somehow missing
           try {
             const staleData = await getLeaderboardData(selectedBatch);
             if (isMounted && staleData.length > 0) {
+              currentStaleData = staleData;
               setData(staleData);
+              setBatchCache(prev => ({ ...prev, [selectedBatch]: staleData }));
               setLoading(false);
             }
           } catch (dbError) {
             console.error("Failed to load stale data:", dbError);
           }
         }
+
+        // Check 2-minute expiry
+        const TWO_MINUTES_MS = 2 * 60 * 1000;
+        let needsSync = true;
+        if (currentStaleData.length > 0) {
+          const firstUserWithUpdate = currentStaleData.find(u => u.lastUpdated);
+          if (firstUserWithUpdate?.lastUpdated) {
+            const age = Date.now() - new Date(firstUserWithUpdate.lastUpdated).getTime();
+            if (age < TWO_MINUTES_MS) {
+              needsSync = false;
+            }
+          }
+        }
+
+        if (!needsSync) {
+          return; // Skip syncing since data is fresh enough
+        }
+
+        fetchId.current += 1;
+        const currentFetchId = fetchId.current;
 
         const timeoutPromise = new Promise<User[]>((_, reject) =>
           setTimeout(
@@ -269,20 +295,23 @@ function Leaderboard({ initialData }: LeaderboardProps) {
           ),
         );
         
-        // 2. Trigger fresh fetch from LeetCode (will also update the DB)
+        // 2. Trigger fresh fetch from LeetCode
         try {
+          setIsSyncing(true);
           const freshData = await Promise.race([
             syncLeaderboardData(selectedBatch),
             timeoutPromise,
           ]);
 
-          if (isMounted && freshData.length > 0) {
+          if (isMounted && currentFetchId === fetchId.current && freshData.length > 0) {
             setData(freshData);
+            setBatchCache(prev => ({ ...prev, [selectedBatch]: freshData }));
           }
         } catch (error) {
           console.error("Failed to sync fresh data:", error);
-          if (data.length === 0) {
-            setData([]); // Only reset if we didn't have stale data
+        } finally {
+          if (isMounted && currentFetchId === fetchId.current) {
+            setIsSyncing(false);
           }
         }
       } finally {
@@ -339,31 +368,39 @@ function Leaderboard({ initialData }: LeaderboardProps) {
           className="max-w-sm bg-muted/50 border-muted-foreground/20 focus-visible:ring-primary"
         />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger disabled={loading} asChild>
-            <Button
-              variant="outline"
-              className="min-w-[140px] justify-between cursor-pointer"
-            >
-              {selectedBatch}
-              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="shadow-2xl shadow-neutral-950"
-          >
-            {BATCHES.map((batchKey) => (
-              <DropdownMenuItem
-                key={batchKey}
-                onClick={() => handleBatchChange(batchKey)}
-                className="cursor-pointer"
+        <div className="flex items-center gap-3">
+          {isSyncing && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+              <Loader2 className="size-4 animate-spin" />
+              <span className="hidden sm:inline">Syncing...</span>
+            </div>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger disabled={loading} asChild>
+              <Button
+                variant="outline"
+                className="min-w-[140px] justify-between cursor-pointer"
               >
-                {batchKey}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                {selectedBatch}
+                <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="shadow-2xl shadow-neutral-950"
+            >
+              {BATCHES.map((batchKey) => (
+                <DropdownMenuItem
+                  key={batchKey}
+                  onClick={() => handleBatchChange(batchKey)}
+                  className="cursor-pointer"
+                >
+                  {batchKey}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div

@@ -18,4 +18,5 @@ export type LeaderboardData = {
   profileLink?: string;
   hasKnightBadge: boolean;
   hasGuardianBadge: boolean;
+  lastUpdated?: Date;
 };
