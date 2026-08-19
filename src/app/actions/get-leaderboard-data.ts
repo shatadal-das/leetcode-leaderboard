@@ -1,184 +1,131 @@
 "use server";
 
 import { BatchKey } from "@/components/leaderboard";
-import { firstYearUsers, secondYearUsers } from "@/lib/leetcode-usernames";
-import { LeetCode } from "leetcode-query";
-import { unstable_cache } from "next/cache";
+import {
+  firstYearUsers,
+  secondYearUsers,
+  thirdYearUsers,
+} from "@/lib/leetcode-usernames";
+import { db } from "@/lib/db";
+import { leaderboard } from "@/lib/schema";
+import { inArray } from "drizzle-orm";
+import { LeaderboardData } from "@/lib/types";
+import { fetchUser } from "@/lib/leetcode-fetch";
+export type { LeetCodeUserConfig, LeaderboardData } from "@/lib/types";
 
-const leetcode = new LeetCode();
 
-export type LeetCodeUserConfig = {
-  username: string;
-  name: string;
-};
 
-export type LeaderboardData = {
-  id: string;
-  username: string;
-  rank?: number;
-  rating: number;
-  solved: {
-    easy: number;
-    medium: number;
-    hard: number;
-  };
-  todaySolved: number;
-  contests: number;
-  profileLink?: string;
-  hasKnightBadge: boolean;
-  hasGuardianBadge: boolean; // Added Guardian badge status
-};
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const USER_DATA_QUERY = `
-  query getUserData($username: String!) {
-    matchedUser(username: $username) {
-      submitStats {
-        acSubmissionNum {
-          difficulty
-          count
-        }
-      }
-      contestBadge {
-        name
-      }
-      badges {
-        name
-      }
-    }
-    userContestRanking(username: $username) {
-      rating
-      attendedContestsCount
-    }
-    recentAcSubmissionList(username: $username, limit: 50) {
-      titleSlug
-      timestamp
-    }
+function getUsersForBatch(batchKey: BatchKey) {
+  switch (batchKey) {
+    case "2nd Year": return secondYearUsers;
+    case "3rd Year": return thirdYearUsers;
+    default: return firstYearUsers;
   }
-`;
+}
 
-async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardData> {
-  const profileLink = `https://leetcode.com/u/${user.username}/`;
+// 1. Instantly get stale data from DB
+export const getLeaderboardData = async (batchKey: BatchKey) => {
+  const users = getUsersForBatch(batchKey);
+  const usernames = users.map((u) => u.username);
 
-  try {
-    const response = await leetcode.graphql({
-      query: USER_DATA_QUERY,
-      variables: { username: user.username },
-    });
+  const dbUsers = await db.select()
+    .from(leaderboard)
+    .where(inArray(leaderboard.id, usernames));
 
-    const data = response.data;
-
-    if (!data || !data.matchedUser) throw new Error("User not found");
-
-    // --- Badge Logic ---
-    const contestBadge = data.matchedUser.contestBadge?.name || null;
-    const generalBadges =
-      data.matchedUser.badges?.map((b: { name: string }) => b.name) || [];
-
-    // Check Knight
-    const hasContestKnight = contestBadge === "Knight";
-    const hasGeneralKnight = generalBadges.includes("Knight");
-    const hasKnightBadge = hasContestKnight || hasGeneralKnight;
-
-    // Check Guardian
-    const hasContestGuardian = contestBadge === "Guardian";
-    const hasGeneralGuardian = generalBadges.includes("Guardian");
-    const hasGuardianBadge = hasContestGuardian || hasGeneralGuardian;
-
-    const now = new Date();
-    const startOfTodayUTC = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-    );
-    const startOfTodayTimestamp = startOfTodayUTC.getTime() / 1000;
-
-    const recentSubmissions = data.recentAcSubmissionList || [];
-    const uniqueTodaySolved = new Set();
-
-    recentSubmissions.forEach(
-      (sub: { titleSlug: string; timestamp: string }) => {
-        if (Number(sub.timestamp) >= startOfTodayTimestamp) {
-          uniqueTodaySolved.add(sub.titleSlug);
-        }
-      },
-    );
-
-    const todaySolved = uniqueTodaySolved.size;
-
-    const subs = data.matchedUser.submitStats.acSubmissionNum as {
-      difficulty: "All" | "Easy" | "Medium" | "Hard";
-      count: number;
-    }[];
-
-    const solved = {
-      easy: subs.find((sub) => sub.difficulty === "Easy")?.count || 0,
-      medium: subs.find((sub) => sub.difficulty === "Medium")?.count || 0,
-      hard: subs.find((sub) => sub.difficulty === "Hard")?.count || 0,
-    };
-
-    const rating = Math.round(data.userContestRanking?.rating || 0);
-    const contests = data.userContestRanking?.attendedContestsCount || 0;
-
-    return {
-      id: user.username,
-      username: user.name,
-      rating,
-      solved,
-      todaySolved,
-      contests,
-      profileLink,
-      hasKnightBadge,
-      hasGuardianBadge, // Return Guardian badge status
-    };
-  } catch (error) {
+  const mappedUsers: LeaderboardData[] = users.map((user) => {
+    const dbUser = dbUsers.find((u) => u.id === user.username);
+    if (dbUser) {
+      return {
+        id: dbUser.id,
+        username: dbUser.username,
+        rating: dbUser.rating,
+        solved: { easy: dbUser.easy, medium: dbUser.medium, hard: dbUser.hard },
+        todaySolved: dbUser.todaySolved,
+        contests: dbUser.contests,
+        profileLink: dbUser.profileLink || `https://leetcode.com/u/${user.username}/`,
+        hasKnightBadge: dbUser.hasKnightBadge,
+        hasGuardianBadge: dbUser.hasGuardianBadge,
+      };
+    }
     return {
       id: user.username,
       username: user.name,
       rating: 0,
-      solved: {
-        easy: 0,
-        medium: 0,
-        hard: 0,
-      },
+      solved: { easy: 0, medium: 0, hard: 0 },
       todaySolved: 0,
       contests: 0,
-      profileLink,
+      profileLink: `https://leetcode.com/u/${user.username}/`,
       hasKnightBadge: false,
-      hasGuardianBadge: false, // Default to false on error
+      hasGuardianBadge: false,
     };
-  }
-}
+  });
 
-export const getLeaderboardData = async (batchKey: BatchKey) => {
-  const isFirstYear = batchKey === "1st Year";
-  const users = isFirstYear ? firstYearUsers : secondYearUsers;
+  return mappedUsers
+    .sort((a, b) => b.rating === a.rating ? b.contests - a.contests : b.rating - a.rating)
+    .map((user, index) => ({ ...user, rank: index + 1 }));
+};
 
-  const getCachedData = unstable_cache(
-    async () => {
-      const BATCH_SIZE = 10;
-      const allUsers: LeaderboardData[] = [];
+// 2. Fetch fresh data from LeetCode, save to DB, and return
+export const syncLeaderboardData = async (batchKey: BatchKey) => {
+  const users = getUsersForBatch(batchKey);
+  
+  const CHUNK_SIZE = 30; 
+  const DELAY_BETWEEN_CHUNKS = 1000; 
 
-      for (let i = 0; i < users.length; i += BATCH_SIZE) {
-        const batch = users.slice(i, i + BATCH_SIZE);
-        const batchResults = await Promise.all(
-          batch.map((user) => fetchUser(user)),
-        );
-        allUsers.push(...batchResults);
-      }
+  const results: LeaderboardData[] = [];
 
-      const rankedUsers = allUsers
-        .sort((a, b) => {
-          if (b.rating === a.rating) {
-            return b.contests - a.contests;
-          }
+  for (let i = 0; i < users.length; i += CHUNK_SIZE) {
+    const chunk = users.slice(i, i + CHUNK_SIZE);
+    
+    const chunkResults = await Promise.all(
+      chunk.map(user => fetchUser(user))
+    );
 
-          return b.rating - a.rating;
+    // Upsert into DB
+    for (const data of chunkResults) {
+      await db.insert(leaderboard)
+        .values({
+          id: data.id,
+          username: data.username,
+          rating: data.rating,
+          easy: data.solved.easy,
+          medium: data.solved.medium,
+          hard: data.solved.hard,
+          todaySolved: data.todaySolved,
+          contests: data.contests,
+          profileLink: data.profileLink,
+          hasKnightBadge: data.hasKnightBadge,
+          hasGuardianBadge: data.hasGuardianBadge,
+          lastUpdated: new Date(),
         })
-        .map((user, index) => ({ ...user, rank: index + 1 }));
+        .onConflictDoUpdate({
+          target: leaderboard.id,
+          set: {
+            username: data.username,
+            rating: data.rating,
+            easy: data.solved.easy,
+            medium: data.solved.medium,
+            hard: data.solved.hard,
+            todaySolved: data.todaySolved,
+            contests: data.contests,
+            profileLink: data.profileLink,
+            hasKnightBadge: data.hasKnightBadge,
+            hasGuardianBadge: data.hasGuardianBadge,
+            lastUpdated: new Date(),
+          },
+        });
+    }
+    
+    results.push(...chunkResults);
 
-      return rankedUsers;
-    },
-    [`leetcode-leaderboard-${batchKey}`],
-    { revalidate: process.env.NODE_ENV === "development" ? 1 : 60 },
-  );
+    if (i + CHUNK_SIZE < users.length) {
+      await delay(DELAY_BETWEEN_CHUNKS);
+    }
+  }
 
-  return await getCachedData();
+  return results
+    .sort((a, b) => b.rating === a.rating ? b.contests - a.contests : b.rating - a.rating)
+    .map((user, index) => ({ ...user, rank: index + 1 }));
 };

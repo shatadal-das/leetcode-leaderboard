@@ -2,6 +2,7 @@
 
 import {
   getLeaderboardData,
+  syncLeaderboardData,
   type LeaderboardData as User,
 } from "@/app/actions/get-leaderboard-data";
 import guardianGif from "@/assets/guardian.gif";
@@ -42,17 +43,16 @@ import {
   TableRow,
 } from "./ui/table";
 
-export type BatchKey = "1st Year" | "2nd Year";
-// | "3rd Year";
+export type BatchKey = "1st Year" | "2nd Year" | "3rd Year";
 
 const BATCHES: BatchKey[] = [
   "1st Year",
   "2nd Year",
-  // "3rd Year",
+  "3rd Year",
 ];
 
 const STORAGE_KEY = "leetcode_leaderboard_batch_preference";
-const CLIENT_TIMEOUT_MS = 30000;
+const CLIENT_TIMEOUT_MS = 120000;
 
 const columns: ColumnDef<User>[] = [
   {
@@ -213,7 +213,11 @@ const columns: ColumnDef<User>[] = [
   },
 ];
 
-function Leaderboard() {
+interface LeaderboardProps {
+  initialData?: Record<BatchKey, User[]>;
+}
+
+function Leaderboard({ initialData }: LeaderboardProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [data, setData] = useState<User[]>([]);
@@ -241,8 +245,22 @@ function Leaderboard() {
       if (!selectedBatch) return;
 
       try {
-        setLoading(true);
-        setData([]);
+        if (initialData && initialData[selectedBatch]) {
+          setData(initialData[selectedBatch]);
+          setLoading(false);
+        } else {
+          setLoading(true);
+          // Fallback if initialData is somehow missing
+          try {
+            const staleData = await getLeaderboardData(selectedBatch);
+            if (isMounted && staleData.length > 0) {
+              setData(staleData);
+              setLoading(false);
+            }
+          } catch (dbError) {
+            console.error("Failed to load stale data:", dbError);
+          }
+        }
 
         const timeoutPromise = new Promise<User[]>((_, reject) =>
           setTimeout(
@@ -250,17 +268,22 @@ function Leaderboard() {
             CLIENT_TIMEOUT_MS,
           ),
         );
+        
+        // 2. Trigger fresh fetch from LeetCode (will also update the DB)
         try {
-          const rankedUsers = await Promise.race([
-            getLeaderboardData(selectedBatch),
+          const freshData = await Promise.race([
+            syncLeaderboardData(selectedBatch),
             timeoutPromise,
           ]);
 
-          if (isMounted) {
-            setData(rankedUsers);
+          if (isMounted && freshData.length > 0) {
+            setData(freshData);
           }
         } catch (error) {
-          setData([]);
+          console.error("Failed to sync fresh data:", error);
+          if (data.length === 0) {
+            setData([]); // Only reset if we didn't have stale data
+          }
         }
       } finally {
         if (isMounted) {
