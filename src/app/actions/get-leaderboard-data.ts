@@ -5,7 +5,7 @@ import {
   secondYearUsers,
   thirdYearUsers,
 } from "@/lib/leetcode-usernames";
-import { db } from "@/lib/db";
+import { db, ensureLeaderboardTable } from "@/lib/db";
 import { leaderboard } from "@/lib/schema";
 import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { BatchKey, LeaderboardData } from "@/lib/types";
@@ -30,8 +30,33 @@ function getAllDatasetUsernames() {
   ].map((u) => u.username);
 }
 
+function sortLeaderboard(users: LeaderboardData[]): LeaderboardData[] {
+  return [...users]
+    .sort((a, b) => {
+      // 1. Contest rating
+      if (b.rating !== a.rating) {
+        return b.rating - a.rating;
+      }
+      // 2. Attended contests count
+      if (b.contests !== a.contests) {
+        return b.contests - a.contests;
+      }
+      // 3. Total questions solved tie-breaker
+      const aTotal = a.solved.easy + a.solved.medium + a.solved.hard;
+      const bTotal = b.solved.easy + b.solved.medium + b.solved.hard;
+      if (bTotal !== aTotal) {
+        return bTotal - aTotal;
+      }
+      // 4. Questions solved today
+      return b.todaySolved - a.todaySolved;
+    })
+    .map((user, index) => ({ ...user, rank: index + 1 }));
+}
+
 // 1. Instantly get stale data from DB
 export const getLeaderboardData = async (batchKey: BatchKey) => {
+  await ensureLeaderboardTable();
+
   const users = getUsersForBatch(batchKey);
   const usernames = users.map((u) => u.username);
 
@@ -74,9 +99,7 @@ export const getLeaderboardData = async (batchKey: BatchKey) => {
     };
   });
 
-  return mappedUsers
-    .sort((a, b) => b.rating === a.rating ? b.contests - a.contests : b.rating - a.rating)
-    .map((user, index) => ({ ...user, rank: index + 1 }));
+  return sortLeaderboard(mappedUsers);
 };
 
 const lastSyncTimestamp: Record<string, number> = {};
@@ -92,6 +115,8 @@ export const syncLeaderboardData = async (batchKey: BatchKey) => {
     return getLeaderboardData(batchKey);
   }
   lastSyncTimestamp[batchKey] = now;
+
+  await ensureLeaderboardTable();
 
   const users = getUsersForBatch(batchKey);
   const usernames = users.map((u) => u.username);
@@ -225,7 +250,5 @@ export const syncLeaderboardData = async (batchKey: BatchKey) => {
     }
   }
 
-  return results
-    .sort((a, b) => b.rating === a.rating ? b.contests - a.contests : b.rating - a.rating)
-    .map((user, index) => ({ ...user, rank: index + 1 }));
+  return sortLeaderboard(results);
 };

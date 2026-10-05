@@ -127,6 +127,16 @@ const columns: ColumnDef<User>[] = [
   {
     accessorKey: "rating",
     size: 15,
+    sortingFn: (rowA, rowB) => {
+      const a = rowA.original;
+      const b = rowB.original;
+      if (a.rating !== b.rating) return a.rating - b.rating;
+      if (a.contests !== b.contests) return a.contests - b.contests;
+      const aTotal = a.solved.easy + a.solved.medium + a.solved.hard;
+      const bTotal = b.solved.easy + b.solved.medium + b.solved.hard;
+      if (aTotal !== bTotal) return aTotal - bTotal;
+      return a.todaySolved - b.todaySolved;
+    },
     header: ({ column }) => (
       <Button
         variant="ghost"
