@@ -21,7 +21,7 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronDown, Trophy, Loader2, RefreshCw } from "lucide-react";
+import { ArrowUpDown, ChevronDown, Trophy, Loader2, RefreshCw, CheckCircle2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
@@ -236,14 +236,28 @@ function Leaderboard({ initialData }: LeaderboardProps) {
   );
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncingBatch, setSyncingBatch] = useState<BatchKey | null>(null);
+  const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [selectedBatch, setSelectedBatch] = useState<BatchKey | undefined>();
   const [timeAgo, setTimeAgo] = useState<string>("");
   const [cooldown, setCooldown] = useState(0);
   const fetchId = useRef(0);
+  const selectedBatchRef = useRef<BatchKey | undefined>(selectedBatch);
 
   const MANUAL_SYNC_COOLDOWN_SEC = 30;
+
+  useEffect(() => {
+    selectedBatchRef.current = selectedBatch;
+  }, [selectedBatch]);
+
+  useEffect(() => {
+    if (!syncSuccessMessage) return;
+    const timer = setTimeout(() => {
+      setSyncSuccessMessage(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [syncSuccessMessage]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -257,20 +271,24 @@ function Leaderboard({ initialData }: LeaderboardProps) {
     const savedBatch = localStorage.getItem(STORAGE_KEY);
     if (savedBatch && BATCHES.includes(savedBatch as BatchKey)) {
       setSelectedBatch(savedBatch as BatchKey);
+      selectedBatchRef.current = savedBatch as BatchKey;
     } else {
       setSelectedBatch("1st Year");
+      selectedBatchRef.current = "1st Year";
     }
   }, []);
 
   const handleBatchChange = (batch: BatchKey) => {
+    selectedBatchRef.current = batch;
     setSelectedBatch(batch);
     localStorage.setItem(STORAGE_KEY, batch);
   };
 
   const triggerSync = async (batch: BatchKey, force = false) => {
-    if (isSyncing) return;
-    setIsSyncing(true);
+    if (syncingBatch) return;
+    setSyncingBatch(batch);
     setSyncError(null);
+    setSyncSuccessMessage(null);
     fetchId.current += 1;
     const currentFetchId = fetchId.current;
 
@@ -288,21 +306,29 @@ function Leaderboard({ initialData }: LeaderboardProps) {
       ]);
 
       if (currentFetchId === fetchId.current && freshData.length > 0) {
-        setData(freshData);
+        // Always store fresh data in cache for this batch
         setBatchCache((prev) => ({ ...prev, [batch]: freshData }));
+
+        // Only update active table if user is currently viewing this batch
+        if (selectedBatchRef.current === batch) {
+          setData(freshData);
+        }
+
+        // Inform user which batch was fetched
+        setSyncSuccessMessage(`${batch} data updated`);
       }
     } catch (error) {
       console.error("Failed to sync fresh data:", error);
       setSyncError("Sync failed");
     } finally {
       if (currentFetchId === fetchId.current) {
-        setIsSyncing(false);
+        setSyncingBatch(null);
       }
     }
   };
 
   const handleManualRefresh = () => {
-    if (!selectedBatch || isSyncing || cooldown > 0) return;
+    if (!selectedBatch || syncingBatch || cooldown > 0) return;
     setCooldown(MANUAL_SYNC_COOLDOWN_SEC);
     triggerSync(selectedBatch, true);
   };
@@ -428,10 +454,15 @@ function Leaderboard({ initialData }: LeaderboardProps) {
         />
 
         <div className="flex items-center gap-3">
-          {isSyncing ? (
+          {syncingBatch ? (
             <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground animate-pulse">
-              <Loader2 className="size-3.5 sm:size-4 animate-spin" />
-              <span className="hidden sm:inline">Syncing...</span>
+              <Loader2 className="size-3.5 sm:size-4 animate-spin text-primary" />
+              <span className="hidden sm:inline">Syncing {syncingBatch}...</span>
+            </div>
+          ) : syncSuccessMessage ? (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400">
+              <CheckCircle2 className="size-3.5 shrink-0" />
+              <span>{syncSuccessMessage}</span>
             </div>
           ) : timeAgo ? (
             <span className="text-xs text-muted-foreground hidden md:inline">
@@ -453,7 +484,7 @@ function Leaderboard({ initialData }: LeaderboardProps) {
             variant="outline"
             size="icon"
             onClick={handleManualRefresh}
-            disabled={isSyncing || loading || cooldown > 0}
+            disabled={!!syncingBatch || loading || cooldown > 0}
             title={
               cooldown > 0
                 ? `Please wait ${cooldown}s before refreshing again`
@@ -462,9 +493,9 @@ function Leaderboard({ initialData }: LeaderboardProps) {
             className="size-9 cursor-pointer hover:bg-muted relative"
           >
             <RefreshCw
-              className={cn("size-4", isSyncing && "animate-spin text-primary")}
+              className={cn("size-4", syncingBatch && "animate-spin text-primary")}
             />
-            {cooldown > 0 && !isSyncing && (
+            {cooldown > 0 && !syncingBatch && (
               <span className="absolute -top-1 -right-1 bg-muted-foreground/30 text-foreground text-[10px] font-mono px-1 rounded-full leading-tight border border-border">
                 {cooldown}
               </span>
