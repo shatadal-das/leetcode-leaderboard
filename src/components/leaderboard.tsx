@@ -21,7 +21,7 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, ChevronDown, Trophy, Loader2 } from "lucide-react";
+import { ArrowUpDown, ChevronDown, Trophy, Loader2, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
@@ -42,8 +42,9 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/table";
+import { type BatchKey } from "@/lib/types";
 
-export type BatchKey = "1st Year" | "2nd Year" | "3rd Year";
+export type { BatchKey };
 
 const BATCHES: BatchKey[] = [
   "1st Year",
@@ -218,14 +219,29 @@ interface LeaderboardProps {
 }
 
 function Leaderboard({ initialData }: LeaderboardProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "rating", desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [batchCache, setBatchCache] = useState<Record<BatchKey, User[]>>(initialData || ({} as Record<BatchKey, User[]>));
+  const [batchCache, setBatchCache] = useState<Record<BatchKey, User[]>>(
+    initialData || ({} as Record<BatchKey, User[]>)
+  );
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [selectedBatch, setSelectedBatch] = useState<BatchKey | undefined>();
+  const [timeAgo, setTimeAgo] = useState<string>("");
+  const [cooldown, setCooldown] = useState(0);
   const fetchId = useRef(0);
+
+  const MANUAL_SYNC_COOLDOWN_SEC = 30;
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   useEffect(() => {
     const savedBatch = localStorage.getItem(STORAGE_KEY);
@@ -241,38 +257,85 @@ function Leaderboard({ initialData }: LeaderboardProps) {
     localStorage.setItem(STORAGE_KEY, batch);
   };
 
+  const triggerSync = async (batch: BatchKey, force = false) => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    setSyncError(null);
+    fetchId.current += 1;
+    const currentFetchId = fetchId.current;
+
+    const timeoutPromise = new Promise<User[]>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("Client request timeout")),
+        CLIENT_TIMEOUT_MS,
+      ),
+    );
+
+    try {
+      const freshData = await Promise.race([
+        syncLeaderboardData(batch),
+        timeoutPromise,
+      ]);
+
+      if (currentFetchId === fetchId.current && freshData.length > 0) {
+        setData(freshData);
+        setBatchCache((prev) => ({ ...prev, [batch]: freshData }));
+      }
+    } catch (error) {
+      console.error("Failed to sync fresh data:", error);
+      setSyncError("Sync failed");
+    } finally {
+      if (currentFetchId === fetchId.current) {
+        setIsSyncing(false);
+      }
+    }
+  };
+
+  const handleManualRefresh = () => {
+    if (!selectedBatch || isSyncing || cooldown > 0) return;
+    setCooldown(MANUAL_SYNC_COOLDOWN_SEC);
+    triggerSync(selectedBatch, true);
+  };
+
   useEffect(() => {
     let isMounted = true;
 
-    const fetchData = async () => {
+    const loadData = async () => {
       if (!selectedBatch) return;
+      setSyncError(null);
 
-      try {
-        let currentStaleData: User[] = [];
-        if (batchCache[selectedBatch]) {
-          currentStaleData = batchCache[selectedBatch];
-          setData(currentStaleData);
-          setLoading(false);
-        } else {
-          setLoading(true);
-          try {
-            const staleData = await getLeaderboardData(selectedBatch);
-            if (isMounted && staleData.length > 0) {
-              currentStaleData = staleData;
-              setData(staleData);
-              setBatchCache(prev => ({ ...prev, [selectedBatch]: staleData }));
-              setLoading(false);
-            }
-          } catch (dbError) {
-            console.error("Failed to load stale data:", dbError);
+      let currentData: User[] = [];
+      if (batchCache[selectedBatch] && batchCache[selectedBatch].length > 0) {
+        currentData = batchCache[selectedBatch];
+        setData(currentData);
+        setLoading(false);
+      } else {
+        setLoading(true);
+        try {
+          const staleData = await getLeaderboardData(selectedBatch);
+          if (isMounted && staleData.length > 0) {
+            currentData = staleData;
+            setData(staleData);
+            setBatchCache((prev) => ({ ...prev, [selectedBatch]: staleData }));
           }
+        } catch (dbError) {
+          console.error("Failed to load initial data:", dbError);
+        } finally {
+          if (isMounted) setLoading(false);
         }
+      }
 
-        // Check 2-minute expiry
-        const TWO_MINUTES_MS = 2 * 60 * 1000;
-        let needsSync = true;
-        if (currentStaleData.length > 0) {
-          const firstUserWithUpdate = currentStaleData.find(u => u.lastUpdated);
+      // Check if sync is needed:
+      // 1. If any user has never been synced (new user added or username updated)
+      // 2. Or if data is older than 2 minutes
+      const TWO_MINUTES_MS = 2 * 60 * 1000;
+      let needsSync = true;
+      if (currentData.length > 0) {
+        const hasUnsyncedUser = currentData.some((u) => !u.lastUpdated);
+        if (hasUnsyncedUser) {
+          needsSync = true;
+        } else {
+          const firstUserWithUpdate = currentData.find((u) => u.lastUpdated);
           if (firstUserWithUpdate?.lastUpdated) {
             const age = Date.now() - new Date(firstUserWithUpdate.lastUpdated).getTime();
             if (age < TWO_MINUTES_MS) {
@@ -280,59 +343,44 @@ function Leaderboard({ initialData }: LeaderboardProps) {
             }
           }
         }
+      }
 
-        if (!needsSync) {
-          return; // Skip syncing since data is fresh enough
-        }
-
-        fetchId.current += 1;
-        const currentFetchId = fetchId.current;
-
-        const timeoutPromise = new Promise<User[]>((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Client request timeout")),
-            CLIENT_TIMEOUT_MS,
-          ),
-        );
-        
-        // 2. Trigger fresh fetch from LeetCode
-        try {
-          setIsSyncing(true);
-          const freshData = await Promise.race([
-            syncLeaderboardData(selectedBatch),
-            timeoutPromise,
-          ]);
-
-          if (isMounted && currentFetchId === fetchId.current && freshData.length > 0) {
-            setData(freshData);
-            setBatchCache(prev => ({ ...prev, [selectedBatch]: freshData }));
-          }
-        } catch (error) {
-          console.error("Failed to sync fresh data:", error);
-        } finally {
-          if (isMounted && currentFetchId === fetchId.current) {
-            setIsSyncing(false);
-          }
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+      if (needsSync && isMounted) {
+        triggerSync(selectedBatch, false);
       }
     };
 
-    fetchData();
+    loadData();
 
     return () => {
       isMounted = false;
     };
   }, [selectedBatch]);
 
+  const latestUpdate = data.find((u) => u.lastUpdated)?.lastUpdated;
+
   useEffect(() => {
-    if (!loading && data.length > 0) {
-      setSorting([{ id: "rating", desc: true }]);
-    }
-  }, [loading, data.length]);
+    const updateTimeAgo = () => {
+      if (!latestUpdate) {
+        setTimeAgo("");
+        return;
+      }
+      const d = new Date(latestUpdate);
+      if (isNaN(d.getTime())) {
+        setTimeAgo("");
+        return;
+      }
+      const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+      if (sec < 60) setTimeAgo("just now");
+      else if (sec < 3600) setTimeAgo(`${Math.floor(sec / 60)}m ago`);
+      else if (sec < 86400) setTimeAgo(`${Math.floor(sec / 3600)}h ago`);
+      else setTimeAgo(`${Math.floor(sec / 86400)}d ago`);
+    };
+
+    updateTimeAgo();
+    const timer = setInterval(updateTimeAgo, 30000);
+    return () => clearInterval(timer);
+  }, [latestUpdate]);
 
   const table = useReactTable({
     data,
@@ -348,6 +396,7 @@ function Leaderboard({ initialData }: LeaderboardProps) {
       columnFilters,
     },
     initialState: {
+      sorting: [{ id: "rating", desc: true }],
       pagination: {
         pageSize: 10,
       },
@@ -369,12 +418,49 @@ function Leaderboard({ initialData }: LeaderboardProps) {
         />
 
         <div className="flex items-center gap-3">
-          {isSyncing && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
-              <Loader2 className="size-4 animate-spin" />
+          {isSyncing ? (
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground animate-pulse">
+              <Loader2 className="size-3.5 sm:size-4 animate-spin" />
               <span className="hidden sm:inline">Syncing...</span>
             </div>
+          ) : timeAgo ? (
+            <span className="text-xs text-muted-foreground hidden md:inline">
+              Updated {timeAgo}
+            </span>
+          ) : null}
+
+          {syncError && (
+            <button
+              onClick={handleManualRefresh}
+              className="text-xs text-destructive hover:underline cursor-pointer"
+              title="Click to retry"
+            >
+              Sync failed (retry)
+            </button>
           )}
+
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleManualRefresh}
+            disabled={isSyncing || loading || cooldown > 0}
+            title={
+              cooldown > 0
+                ? `Please wait ${cooldown}s before refreshing again`
+                : "Refresh Leaderboard"
+            }
+            className="size-9 cursor-pointer hover:bg-muted relative"
+          >
+            <RefreshCw
+              className={cn("size-4", isSyncing && "animate-spin text-primary")}
+            />
+            {cooldown > 0 && !isSyncing && (
+              <span className="absolute -top-1 -right-1 bg-muted-foreground/30 text-foreground text-[10px] font-mono px-1 rounded-full leading-tight border border-border">
+                {cooldown}
+              </span>
+            )}
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger disabled={loading} asChild>
               <Button

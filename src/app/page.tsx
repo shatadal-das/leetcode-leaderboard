@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export const maxDuration = 60;
 import Leaderboard from "@/components/leaderboard";
 import { Calendar } from "lucide-react";

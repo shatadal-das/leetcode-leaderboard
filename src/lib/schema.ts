@@ -3,6 +3,7 @@ import { pgTable, text, integer, boolean, timestamp } from 'drizzle-orm/pg-core'
 export const leaderboard = pgTable('leaderboard', {
   id: text('id').primaryKey(), // This is the LeetCode username (unique)
   username: text('username').notNull(), // This is the person's real name
+  batch: text('batch'), // e.g. "1st Year", "2nd Year", "3rd Year"
   rating: integer('rating').notNull().default(0),
   easy: integer('easy').notNull().default(0),
   medium: integer('medium').notNull().default(0),

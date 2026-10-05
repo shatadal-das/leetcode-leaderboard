@@ -1,7 +1,6 @@
-import { LeetCode } from "leetcode-query";
 import { LeetCodeUserConfig, LeaderboardData } from "./types";
 
-const leetcode = new LeetCode();
+const LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql";
 
 const USER_DATA_QUERY = `
   query getUserData($username: String!) {
@@ -34,14 +33,32 @@ export async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardDa
   const profileLink = `https://leetcode.com/u/${user.username}/`;
 
   try {
-    const response = await leetcode.graphql({
-      query: USER_DATA_QUERY,
-      variables: { username: user.username },
+    const res = await fetch(LEETCODE_GRAPHQL_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "user-agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        referer: "https://leetcode.com",
+        origin: "https://leetcode.com",
+      },
+      body: JSON.stringify({
+        query: USER_DATA_QUERY,
+        variables: { username: user.username },
+      }),
+      signal: AbortSignal.timeout(10000),
     });
 
-    const data = response.data;
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
 
-    if (!data || !data.matchedUser) throw new Error("User not found");
+    const json = await res.json();
+    const data = json.data;
+
+    if (!data || !data.matchedUser) {
+      throw new Error("User not found or no data returned");
+    }
 
     // --- Badge Logic ---
     const contestBadge = data.matchedUser.contestBadge?.name || null;
@@ -77,10 +94,10 @@ export async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardDa
 
     const todaySolved = uniqueTodaySolved.size;
 
-    const subs = data.matchedUser.submitStats.acSubmissionNum as {
+    const subs = (data.matchedUser.submitStats?.acSubmissionNum as {
       difficulty: "All" | "Easy" | "Medium" | "Hard";
       count: number;
-    }[];
+    }[]) || [];
 
     const solved = {
       easy: subs.find((sub) => sub.difficulty === "Easy")?.count || 0,
@@ -100,7 +117,9 @@ export async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardDa
       contests,
       profileLink,
       hasKnightBadge,
-      hasGuardianBadge, // Return Guardian badge status
+      hasGuardianBadge,
+      lastUpdated: new Date(),
+      fetchSuccess: true,
     };
   } catch (error) {
     return {
@@ -116,7 +135,8 @@ export async function fetchUser(user: LeetCodeUserConfig): Promise<LeaderboardDa
       contests: 0,
       profileLink,
       hasKnightBadge: false,
-      hasGuardianBadge: false, // Default to false on error
+      hasGuardianBadge: false,
+      fetchSuccess: false,
     };
   }
 }

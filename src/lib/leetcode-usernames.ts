@@ -2,7 +2,7 @@ export type UserListData = { name: string; username: string };
 
 export const firstYearUsers: UserListData[] = [
   { name: "Ishika Gupta", username: "ishika2609" },
-  { name: "Pushpesh Srivastava", username: "Balji1104" },
+  { name: "Pushpesh Srivastava", username: "balji123" },
   { name: "Palash Soni", username: "Palash_soni" },
   { name: "Om Jethava", username: "omjethva24" },
   { name: "Gaurav Maurya", username: "GauravMaurya07" },
@@ -14,7 +14,7 @@ export const firstYearUsers: UserListData[] = [
   { name: "Vijaya Kumari Mina", username: "vijayamina" },
   { name: "Basant Kumar", username: "basantkumar66972" },
   { name: "Supriya Gupta", username: "Supriya_Gupta1744" },
-  { name: "Atul Sharma", username: "PQttVHca2P" },
+  { name: "Atul Sharma", username: "atul_dev18" },
   { name: "Anand Saxena", username: "AnandSaxena" },
   { name: "Aditi Barman", username: "adtbrmn" },
   { name: "Subham Patra", username: "Subhampatra1916" },
@@ -48,7 +48,7 @@ export const firstYearUsers: UserListData[] = [
   { name: "Abhinav Rai", username: "navil8858" },
   { name: "Vikesh Ray", username: "bvdwffEqPt" },
   { name: "Sushant Kujur", username: "a76PrvuHKw" },
-  { name: "Amit Prajapati", username: "amit_prajapati_62" },
+  { name: "Amit Prajapati", username: "ap_coder_62" },
   { name: "Harshita Mishra", username: "hersheyyydotm" },
   { name: "Manu Singh", username: "manu-120" },
   { name: "Keshav", username: "KeshavTiwari80" },
@@ -101,7 +101,7 @@ export const firstYearUsers: UserListData[] = [
   { name: "Mantasha Khan", username: "mantasha_256" },
   { name: "Priyanshi Kumari", username: "Priyanshi_Kumari20" },
   { name: "Vishal Singh", username: "Vishal9211" },
-  { name: "Piyush Kr Pathak", username: "bumbumss" },
+  { name: "Piyush Kr Pathak", username: "Bumbumss" },
   { name: "Vandna Patidar", username: "Vandnapatidar" },
   { name: "Sidant Meena", username: "sid189" },
   { name: "Sunil Kumawat", username: "skumawat_" },
@@ -110,6 +110,7 @@ export const firstYearUsers: UserListData[] = [
   { name: "Anjikya Vinay", username: "anjikyavinay" },
   { name: "Saraswati Dhakad", username: "saraswati_111" },
   { name: "Sumant Kumar Gond", username: "EmlujWnis2" },
+  { name: "Mayank Mamgain", username: "mayankmamgain07" },
 ];
 
 export const secondYearUsers: UserListData[] = [

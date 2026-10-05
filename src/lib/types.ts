@@ -1,3 +1,5 @@
+export type BatchKey = "1st Year" | "2nd Year" | "3rd Year";
+
 export type LeetCodeUserConfig = {
   username: string;
   name: string;
@@ -19,4 +21,5 @@ export type LeaderboardData = {
   hasKnightBadge: boolean;
   hasGuardianBadge: boolean;
   lastUpdated?: Date;
+  fetchSuccess?: boolean;
 };
